@@ -771,26 +771,34 @@ a:hover { text-decoration: underline; }
 }
 .detail-field:last-child { border-bottom: none; }
 
-/* TL indent: TL drag handle aligns with TM chevron (TM group: margin-left 6px + padding-left 12px; TM drag-handle ~16px + gap 5px before chevron → 21px into content). */
-.detail-module-group .detail-field { padding-left: 20px; }
-.detail-section-group > .detail-field { padding-left: 23px; }
+/* TL handle is hidden (width:0) — label text starts at natural left edge */
+.detail-module-group .detail-field { padding-left: 32px; }
+.detail-section-group > .detail-field { padding-left: 4px; }
 
 /* TL cross-TM drop indicators */
 .tl-drop-before { border-top: 2px solid var(--accent-blue) !important; }
 .tl-drop-after  { border-bottom: 2px solid var(--accent-blue) !important; }
 .tl-drop-target { outline: 2px solid var(--accent-blue); outline-offset: -1px; border-radius: 3px; }
 
-/* TS drag handle */
+/* TS drag handle — hidden at rest, appears on heading hover */
 .detail-ts-drag-handle { flex-shrink: 0; color: var(--text-placeholder); cursor: grab; padding: 0 3px; font-size: 12px; line-height: 1; user-select: none; opacity: 0; transition: opacity 0.1s; }
 .detail-section-heading:hover .detail-ts-drag-handle { opacity: 1; }
 .detail-ts-drag-handle:active { cursor: grabbing; }
 .ts-dragging { opacity: 0.45; }
 
-/* TL drag handle — sits as first flex child inside .detail-field */
-.detail-tl-drag-handle { flex-shrink: 0; width: 14px; color: transparent; cursor: grab; font-size: 10px; text-align: center; line-height: 1; user-select: none; padding-top: 3px; }
-.detail-field:hover .detail-tl-drag-handle { color: var(--text-placeholder); }
-.detail-tl-drag-handle:active { cursor: grabbing; }
-.tl-dragging { opacity: 0.45; }
+/* TL drag handle — zero-width (invisible, no layout space); drag initiated from whole row */
+.detail-tl-drag-handle { flex-shrink: 0; width: 0; overflow: hidden; padding: 0; color: transparent; font-size: 10px; line-height: 1; user-select: none; }
+.tl-dragging { opacity: 0.45; cursor: grabbing !important; }
+
+/* TL row: blue left-border accent + grab cursor on hover (#4 + #5) */
+.detail-field:hover { box-shadow: inset 3px 0 0 var(--accent-blue); cursor: grab; }
+.detail-field:hover .detail-field-value { cursor: default; }
+.detail-field:hover .detail-field-value select,
+.detail-field:hover .detail-field-value input,
+.detail-field:hover .detail-field-value textarea,
+.detail-field:hover .detail-field-value button,
+.detail-field:hover .detail-field-value a { cursor: pointer; }
+.detail-field:hover .detail-rename-btn { cursor: pointer; }
 
 .detail-field-label {
   width: 120px;
@@ -1045,8 +1053,104 @@ a:hover { text-decoration: underline; }
 .task-row[draggable="true"]:hover { cursor: grab; }
 .task-row[draggable="true"]:active { cursor: grabbing; }
 
-/* ── Comments ────────────────────────────────────────────────────────────── */
+/* ── Comment pane — third panel (right of detail panel) ─────────────────── */
 
+#comment-pane {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  overflow: hidden;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  z-index: 195;
+  transition: width 0.2s ease;
+}
+#app.comment-pane-open #comment-pane {
+  width: 300px;
+  min-width: 260px;
+}
+#app.comment-pane-open #detail-panel {
+  right: 300px;
+  transition: right 0.2s ease, width 0.2s ease;
+}
+#app.comment-pane-open #sidebar {
+  width: 210px;
+  min-width: 210px;
+}
+
+.comment-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.comment-pane-close {
+  width: 24px; height: 24px;
+  border-radius: var(--radius-sm);
+  font-size: 18px; line-height: 1;
+  color: var(--text-secondary);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.comment-pane-close:hover { background: var(--bg-hover); color: var(--text); }
+.comment-pane-thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.comment-pane-thread .comment-input-wrap {
+  flex-shrink: 0;
+}
+
+/* ── Comments (inline — always visible in detail panel) ─────────────────── */
+
+.comment-section {
+  margin-top: 20px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.comment-section-header {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 0 8px;
+}
+.comment-thread-fixed {
+  height: 220px;
+  overflow-y: auto;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.comment-load-more {
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--accent-blue);
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+.comment-load-more:hover { background: var(--accent-blue-bg); }
+
+/* keep .comment-thread for any legacy references */
 .comment-thread {
   max-height: 320px;
   overflow-y: auto;
@@ -1322,6 +1426,45 @@ a:hover { text-decoration: underline; }
   padding: 8px 10px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#data-controls {
+  display: flex;
+  gap: 4px;
+}
+
+.sidebar-data-btn {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.sidebar-data-btn--export {
+  border: 1px solid var(--accent-blue);
+  background: none;
+  color: var(--accent-blue);
+}
+.sidebar-data-btn--export:hover {
+  background: var(--accent-blue);
+  color: #fff;
+}
+.sidebar-data-btn--import {
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+}
+.sidebar-data-btn--import:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: var(--bg-hover);
 }
 
 .sidebar-gear-btn {
@@ -1937,9 +2080,14 @@ a:hover { text-decoration: underline; }
 
 /* ── TM drag handle ──────────────────────────────────────────────────────── */
 
-.detail-tm-drag-handle { flex-shrink: 0; color: var(--text-placeholder); cursor: grab; padding: 0 4px; font-size: 13px; line-height: 1; user-select: none; }
-.detail-tm-drag-handle:active { cursor: grabbing; }
-.tm-dragging { opacity: 0.45; }
+/* TM drag handle — dots hidden by default; grab cursor on whole TM heading hover */
+.detail-tm-drag-handle { flex-shrink: 0; color: transparent; cursor: grab; padding: 0 4px; font-size: 13px; line-height: 1; user-select: none; }
+.detail-module-heading { cursor: grab; }
+.detail-module-heading .section-chevron,
+.detail-module-heading .detail-module-heading-title,
+.detail-module-heading .detail-heading-right,
+.detail-module-heading button { cursor: pointer; }
+.tm-dragging { opacity: 0.45; cursor: grabbing !important; }
 
 /* ── Per-TS add controls bar ─────────────────────────────────────────────── */
 

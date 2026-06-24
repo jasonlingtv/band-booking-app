@@ -46,6 +46,21 @@
       }
     });
 
+    // Export / Import
+    document.getElementById('export-btn').addEventListener('click', () => DataLayer.exportData());
+    document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file-input').click());
+    document.getElementById('import-file-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (!window.confirm(`Import backup "${file.name}"?\n\nThis will REPLACE all current data and reload the app. This cannot be undone.`)) {
+        e.target.value = ''; return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => DataLayer.importData(ev.target.result);
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
     // Gear / Dashboard button
     document.getElementById('dashboard-btn').addEventListener('click', () => {
       if (_dashboardActive) {

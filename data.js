@@ -677,10 +677,36 @@ const DataLayer = (() => {
     saveData();
   }
 
+  // ── Export / Import ───────────────────────────────────────────────────────
+
+  function exportData() {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) { alert('No data to export.'); return; }
+    const blob = new Blob([raw], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `band-booking-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(jsonString) {
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (!parsed || typeof parsed !== 'object') throw new Error('Not a valid backup object');
+      localStorage.setItem(STORAGE_KEY, jsonString);
+      window.location.reload();
+    } catch (e) {
+      alert('Import failed — invalid backup file.\n\n' + e.message);
+    }
+  }
+
   // ── Public API ────────────────────────────────────────────────────────────
 
   return {
     loadData, saveData,
+    exportData, importData,
     getTemplates, getTemplate, getProjectTemplate, addTemplate, updateTemplate, deleteTemplate,
     getTeams, getTeam, addTeam, updateTeam, deleteTeam,
     getProject, getProjectTeam, addProject, updateProject, deleteProject,

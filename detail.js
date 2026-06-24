@@ -15,6 +15,13 @@ const DetailPanel = (() => {
   // Active TL drag state for cross-TM drag-and-drop.
   let _tlDragState = null;
 
+  // Tracks which task is currently open so accordion resets only on task change.
+  let _accordionTaskId = null;
+
+  // Comment panel refresh callbacks — set by renderers, called after a message is sent.
+  let _refreshInlineComments = null;
+  let _refreshPaneComments = null;
+
   // ── Current user identity ────────────────────────────────────────────────
   // Controls which comment bubbles appear on the right (sender === CURRENT_USER).
   // Phase 2: replace with a real account lookup (e.g. Supabase auth.user().email).
@@ -45,6 +52,17 @@ const DetailPanel = (() => {
 
   function render(taskId) {
     _editingActive = false;
+    const isNewTask = taskId !== _accordionTaskId;
+    if (isNewTask) {
+      _accordionTaskId = taskId;
+      const pane = document.getElementById('comment-pane');
+      if (pane) {
+        document.getElementById('app').classList.remove('comment-pane-open');
+        _refreshPaneComments = null;
+        pane.innerHTML = '';
+        delete pane.dataset.taskId;
+      }
+    }
     const panel = document.getElementById('detail-panel');
     const content = document.getElementById('detail-content');
     content.innerHTML = '';
@@ -85,7 +103,7 @@ const DetailPanel = (() => {
       if (blankSections.length > 0) _setupTsReorder(content, task.id, blankCtx);
     } else if (template) {
       const editCtx = { template, taskId: task.id, onModified: () => _syncPanel(task.id) };
-      _renderTemplateSections(content, task, team, template, editCtx);
+      _renderTemplateSections(content, task, team, template, editCtx, isNewTask);
     }
 
     _renderCommentSection(content, task);
@@ -269,7 +287,7 @@ const DetailPanel = (() => {
 
   // ── Template-driven section rendering ─────────────────────────────────────
 
-  function _renderTemplateSections(container, task, team, template, editCtx) {
+  function _renderTemplateSections(container, task, team, template, editCtx, isNewTask) {
     const templateEntries = template.taskSections.map(ts => ({ ts, isCustom: false }));
     const customEntries   = (task.customSections || []).map(cs => ({ ts: cs, isCustom: true }));
     const allEntries = [...templateEntries, ...customEntries];
@@ -283,12 +301,37 @@ const DetailPanel = (() => {
       });
     }
 
+    // Accordion: on first open of a task, default first TS open, rest closed
+    if (isNewTask) {
+      allEntries.forEach(({ ts }, idx) => { _sectionOpen[ts.id] = idx === 0; });
+    }
+
     for (const { ts, isCustom } of allEntries) {
       if (isCustom) {
         _renderCustomSection(container, ts, task, team, editCtx);
       } else {
         _renderTS(container, ts, task, team, editCtx, false);
       }
+    }
+
+    // Accordion: when a TS is opened, collapse all sibling TSs
+    const tsGroups = Array.from(container.querySelectorAll(':scope > .detail-section-group'));
+    if (tsGroups.length > 1) {
+      tsGroups.forEach(group => {
+        const heading = group.querySelector(':scope > .detail-section-heading');
+        if (!heading) return;
+        heading.addEventListener('click', () => {
+          if (group.classList.contains('collapsed')) return; // just collapsed — nothing to accordion
+          tsGroups.forEach(other => {
+            if (other === group) return;
+            other.classList.add('collapsed');
+            const ch = other.querySelector(':scope > .detail-section-heading .section-chevron');
+            if (ch) ch.classList.remove('open');
+            const key = other.dataset.tsId;
+            if (key) _sectionOpen[key] = false;
+          });
+        });
+      });
     }
 
     if (allEntries.length > 1) _setupTsReorder(container, task.id, editCtx);
@@ -425,17 +468,6 @@ const DetailPanel = (() => {
       for (const { f, custom } of tmAllFields) {
         _renderField(tmGroup, f, task, team, editCtx, ts.id, tm.id, custom);
       }
-      const addFieldBtn = document.createElement('button');
-      addFieldBtn.className = 'detail-inline-add-btn detail-inline-add-btn--small';
-      addFieldBtn.textContent = '+ Add Field';
-      addFieldBtn.addEventListener('click', (e) => {
-        if (isCustomMod) {
-          _taskAddFieldToCustomModule(editCtx, tm.id, e.currentTarget);
-        } else {
-          _taskAddCustomField(editCtx, tm.id, e.currentTarget);
-        }
-      });
-      tmGroup.appendChild(addFieldBtn);
     });
 
     // Enable TM drag-and-drop if multiple named modules
@@ -589,11 +621,6 @@ const DetailPanel = (() => {
       for (const field of cmAllFields) {
         _renderField(cmGroup, field, task, team, editCtx, cs.id, cm.id, true);
       }
-      const addBtn = document.createElement('button');
-      addBtn.className = 'detail-inline-add-btn detail-inline-add-btn--small';
-      addBtn.textContent = '+ Add Field';
-      addBtn.addEventListener('click', (e) => _taskAddFieldToCustomTm(editCtx, cs.id, cm.id, e.currentTarget));
-      cmGroup.appendChild(addBtn);
     });
 
     _appendTsAddControls(group, cs.id, true, editCtx, flatTm);
@@ -733,10 +760,14 @@ const DetailPanel = (() => {
     }
 
     container.addEventListener('mousedown', (e) => {
-      const handle = e.target.closest('.detail-tl-drag-handle');
-      if (!handle) return;
-      const field = handle.closest('.detail-field');
+      const field = e.target.closest('.detail-field');
       if (!field) return;
+      // Don't initiate drag from value area or any interactive element
+      if (e.target.closest('.detail-field-value')) return;
+      if (e.target.closest('.detail-field-delete-btn')) return;
+      if (e.target.closest('.detail-rename-btn')) return;
+      const tag = e.target.tagName.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' || tag === 'a') return;
       const parentEl = field.parentElement;
       const taskId = DataLayer.getActiveTaskId();
       if (!taskId) return;
@@ -960,11 +991,6 @@ const DetailPanel = (() => {
     (cm.fields || []).forEach(field => {
       _renderField(cmGroup, field, task, team, editCtx, parentTsId, cm.id, true);
     });
-    const addBtn = document.createElement('button');
-    addBtn.className = 'detail-inline-add-btn detail-inline-add-btn--small';
-    addBtn.textContent = '+ Add Field';
-    addBtn.addEventListener('click', (e) => _taskAddFieldToCustomModule(editCtx, cm.id, e.currentTarget));
-    cmGroup.appendChild(addBtn);
   }
 
   // ── Field dispatch ────────────────────────────────────────────────────────
@@ -1144,6 +1170,11 @@ const DetailPanel = (() => {
     function showRead() {
       _editingActive = false;
       valueWrapper.innerHTML = '';
+      if (type === 'select') {
+        // Render select directly so one click opens the dropdown
+        showEdit();
+        return;
+      }
       const val = getValue();
       const span = document.createElement('span');
       span.className = 'detail-field-text' + (val ? '' : ' placeholder');
@@ -1175,12 +1206,12 @@ const DetailPanel = (() => {
         input.addEventListener('change', () => {
           DataLayer.updateTaskField(taskId, tlId, input.value);
           UIHelpers.showSaved();
-          showRead();
           if (onCommit) onCommit();
+          // Keep select visible — no showRead() round-trip
         });
-        input.addEventListener('blur', () => { setTimeout(() => showRead(), 150); });
+        input.addEventListener('focus', () => { _editingActive = true; });
+        input.addEventListener('blur', () => { _editingActive = false; });
         valueWrapper.appendChild(input);
-        setTimeout(() => input.focus(), 0);
         return;
 
       } else if (type === 'textarea') {
@@ -1589,8 +1620,8 @@ const DetailPanel = (() => {
           setTimeout(() => { if (!committed) commit(); }, 100);
         });
         ta.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commit(); refresh(); }
           if (e.key === 'Escape') { committed = true; _editingActive = false; refresh(); }
+          // Enter inserts a newline naturally; blur saves
         });
         valueWrapper.appendChild(ta);
         setTimeout(() => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }, 0);
@@ -1717,30 +1748,60 @@ const DetailPanel = (() => {
 
   // ── Sub-Tasks section ─────────────────────────────────────────────────────
 
-  function _renderCommentSection(container, task) {
-    const group = _addSectionGroup(container, 'Comments', 'comments_' + task.id, false);
+  // ── Shared comment bubble builder ──────────────────────────────────────────
+  function _makeCommentBubble(c) {
+    const isMine = c.sender === CURRENT_USER;
+    const wrap = document.createElement('div');
+    wrap.className = 'comment-bubble-wrap' + (isMine ? ' mine' : '');
+    const bubble = document.createElement('div');
+    bubble.className = 'comment-bubble' + (isMine ? ' mine' : '');
+    const meta = document.createElement('div');
+    meta.className = 'comment-meta';
+    const senderSpan = document.createElement('span');
+    senderSpan.className = 'comment-sender';
+    senderSpan.textContent = c.sender;
+    const tsSpan = document.createElement('span');
+    tsSpan.className = 'comment-ts';
+    if (c.timestamp) {
+      const d = new Date(c.timestamp);
+      tsSpan.textContent = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+        ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+    meta.appendChild(senderSpan);
+    meta.appendChild(tsSpan);
+    bubble.appendChild(meta);
+    if (c.text) {
+      const body = document.createElement('div');
+      body.className = 'comment-body';
+      _renderTextWithLinks(body, c.text);
+      bubble.appendChild(body);
+    }
+    (c.attachments || []).forEach(att => {
+      if (att.type === 'image') {
+        const img = document.createElement('img');
+        img.src = att.dataUrl; img.className = 'comment-img'; img.alt = att.name;
+        bubble.appendChild(img);
+      } else {
+        const link = document.createElement('a');
+        link.href = att.dataUrl; link.download = att.name;
+        link.className = 'comment-file-link'; link.textContent = '📄 ' + att.name;
+        bubble.appendChild(link);
+      }
+    });
+    wrap.appendChild(bubble);
+    return wrap;
+  }
 
-    // ── Thread (scrollable bubble list) ──────────────────────────────────
-    const thread = document.createElement('div');
-    thread.className = 'comment-thread';
-    group.appendChild(thread);
-
-    // ── Input area ────────────────────────────────────────────────────────
+  // ── Shared comment input area factory ──────────────────────────────────────
+  function _makeCommentInputArea(taskId, onSent) {
     const inputWrap = document.createElement('div');
     inputWrap.className = 'comment-input-wrap';
-    group.appendChild(inputWrap);
 
-    // Hidden file input
-    // NOTE: Attachments are stored as base64 data URLs in localStorage.
-    // Phase 2: replace with real file storage (e.g. Supabase Storage) and store a URL instead.
     const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '*/*';
-    fileInput.multiple = true;
+    fileInput.type = 'file'; fileInput.accept = '*/*'; fileInput.multiple = true;
     fileInput.style.display = 'none';
     inputWrap.appendChild(fileInput);
 
-    // Pending attachments preview strip (shown above textarea before send)
     const pendingPreview = document.createElement('div');
     pendingPreview.className = 'comment-pending-preview';
     inputWrap.appendChild(pendingPreview);
@@ -1768,69 +1829,6 @@ const DetailPanel = (() => {
 
     let _pending = [];
 
-    function _formatTs(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
-             ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-    }
-
-    function _makeBubble(c) {
-      const isMine = c.sender === CURRENT_USER;
-      const wrap = document.createElement('div');
-      wrap.className = 'comment-bubble-wrap' + (isMine ? ' mine' : '');
-
-      const bubble = document.createElement('div');
-      bubble.className = 'comment-bubble' + (isMine ? ' mine' : '');
-
-      const meta = document.createElement('div');
-      meta.className = 'comment-meta';
-      const senderSpan = document.createElement('span');
-      senderSpan.className = 'comment-sender';
-      senderSpan.textContent = c.sender;
-      const tsSpan = document.createElement('span');
-      tsSpan.className = 'comment-ts';
-      tsSpan.textContent = _formatTs(c.timestamp);
-      meta.appendChild(senderSpan);
-      meta.appendChild(tsSpan);
-      bubble.appendChild(meta);
-
-      if (c.text) {
-        const body = document.createElement('div');
-        body.className = 'comment-body';
-        _renderTextWithLinks(body, c.text);
-        bubble.appendChild(body);
-      }
-
-      (c.attachments || []).forEach(att => {
-        if (att.type === 'image') {
-          const img = document.createElement('img');
-          img.src = att.dataUrl;
-          img.className = 'comment-img';
-          img.alt = att.name;
-          bubble.appendChild(img);
-        } else {
-          const link = document.createElement('a');
-          link.href = att.dataUrl;
-          link.download = att.name;
-          link.className = 'comment-file-link';
-          link.textContent = '📄 ' + att.name;
-          bubble.appendChild(link);
-        }
-      });
-
-      wrap.appendChild(bubble);
-      return wrap;
-    }
-
-    function _renderThread() {
-      thread.innerHTML = '';
-      const t = DataLayer.getTask(task.id);
-      const comments = t ? (t.comments || []) : [];
-      comments.forEach(c => thread.appendChild(_makeBubble(c)));
-      thread.scrollTop = thread.scrollHeight;
-    }
-
     function _renderPending() {
       pendingPreview.innerHTML = '';
       _pending.forEach((att, i) => {
@@ -1838,17 +1836,14 @@ const DetailPanel = (() => {
         item.className = 'comment-pending-item';
         if (att.type === 'image') {
           const img = document.createElement('img');
-          img.src = att.dataUrl;
-          img.className = 'comment-pending-thumb';
+          img.src = att.dataUrl; img.className = 'comment-pending-thumb';
           item.appendChild(img);
         }
         const name = document.createElement('span');
-        name.className = 'comment-pending-name';
-        name.textContent = att.name;
+        name.className = 'comment-pending-name'; name.textContent = att.name;
         item.appendChild(name);
         const rm = document.createElement('button');
-        rm.className = 'comment-pending-rm';
-        rm.textContent = '✕';
+        rm.className = 'comment-pending-rm'; rm.textContent = '✕';
         rm.addEventListener('click', () => { _pending.splice(i, 1); _renderPending(); });
         item.appendChild(rm);
         pendingPreview.appendChild(item);
@@ -1858,21 +1853,16 @@ const DetailPanel = (() => {
     function _send() {
       const text = textarea.value.trim();
       if (!text && !_pending.length) return;
-      const t = DataLayer.getTask(task.id);
+      const t = DataLayer.getTask(taskId);
       if (!t) return;
       const comment = {
-        id: Utils.generateId(),
-        sender: CURRENT_USER,
-        text,
-        timestamp: new Date().toISOString(),
-        attachments: _pending.slice()
+        id: Utils.generateId(), sender: CURRENT_USER, text,
+        timestamp: new Date().toISOString(), attachments: _pending.slice()
       };
-      DataLayer.updateTask(task.id, { comments: [...(t.comments || []), comment] });
-      textarea.value = '';
-      textarea.style.height = '';
-      _pending = [];
-      _renderPending();
-      _renderThread();
+      DataLayer.updateTask(taskId, { comments: [...(t.comments || []), comment] });
+      textarea.value = ''; textarea.style.height = '';
+      _pending = []; _renderPending();
+      onSent();
     }
 
     textarea.addEventListener('keydown', (e) => {
@@ -1884,10 +1874,8 @@ const DetailPanel = (() => {
       textarea.style.height = 'auto';
       textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
     });
-
     sendBtn.addEventListener('click', _send);
     attachBtn.addEventListener('click', () => fileInput.click());
-
     fileInput.addEventListener('change', () => {
       const files = Array.from(fileInput.files);
       let remaining = files.length;
@@ -1896,8 +1884,7 @@ const DetailPanel = (() => {
         const reader = new FileReader();
         reader.onload = (ev) => {
           _pending.push({
-            id: Utils.generateId(),
-            name: file.name,
+            id: Utils.generateId(), name: file.name,
             type: file.type.startsWith('image/') ? 'image' : 'file',
             dataUrl: ev.target.result
           });
@@ -1908,7 +1895,96 @@ const DetailPanel = (() => {
       fileInput.value = '';
     });
 
-    _renderThread();
+    return inputWrap;
+  }
+
+  const COMMENT_INLINE_COUNT = 4;
+
+  function _renderCommentSection(container, task) {
+    const section = document.createElement('div');
+    section.className = 'comment-section';
+    container.appendChild(section);
+
+    const hdr = document.createElement('div');
+    hdr.className = 'comment-section-header';
+    hdr.textContent = 'Comments';
+    section.appendChild(hdr);
+
+    const thread = document.createElement('div');
+    thread.className = 'comment-thread-fixed';
+    section.appendChild(thread);
+
+    function renderInline() {
+      thread.innerHTML = '';
+      const t = DataLayer.getTask(task.id);
+      const comments = t ? (t.comments || []) : [];
+      const olderCount = Math.max(0, comments.length - COMMENT_INLINE_COUNT);
+      if (olderCount > 0) {
+        const btn = document.createElement('button');
+        btn.className = 'comment-load-more';
+        btn.textContent = '↑ Load more (' + olderCount + ' older)';
+        btn.addEventListener('click', () => _openCommentPane(task));
+        thread.appendChild(btn);
+      }
+      comments.slice(Math.max(0, comments.length - COMMENT_INLINE_COUNT)).forEach(c => {
+        thread.appendChild(_makeCommentBubble(c));
+      });
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    _refreshInlineComments = renderInline;
+
+    section.appendChild(_makeCommentInputArea(task.id, () => {
+      renderInline();
+      if (_refreshPaneComments) _refreshPaneComments();
+    }));
+
+    renderInline();
+  }
+
+  function _openCommentPane(task) {
+    const pane = document.getElementById('comment-pane');
+    if (!pane) return;
+
+    pane.innerHTML = '';
+    pane.dataset.taskId = task.id;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'comment-pane-header';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'comment-pane-close';
+    closeBtn.textContent = '‹';
+    closeBtn.title = 'Close';
+    closeBtn.addEventListener('click', () => {
+      document.getElementById('app').classList.remove('comment-pane-open');
+      _refreshPaneComments = null;
+    });
+    hdr.appendChild(closeBtn);
+    const title = document.createElement('span');
+    title.textContent = 'Comments';
+    hdr.appendChild(title);
+    pane.appendChild(hdr);
+
+    const thread = document.createElement('div');
+    thread.className = 'comment-pane-thread';
+    pane.appendChild(thread);
+
+    function renderPane() {
+      thread.innerHTML = '';
+      const t = DataLayer.getTask(task.id);
+      (t ? (t.comments || []) : []).forEach(c => thread.appendChild(_makeCommentBubble(c)));
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    _refreshPaneComments = renderPane;
+
+    pane.appendChild(_makeCommentInputArea(task.id, () => {
+      renderPane();
+      if (_refreshInlineComments) _refreshInlineComments();
+    }));
+
+    renderPane();
+    document.getElementById('app').classList.add('comment-pane-open');
   }
 
   // ── Per-task structure helpers ────────────────────────────────────────────
