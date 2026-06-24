@@ -772,7 +772,7 @@ a:hover { text-decoration: underline; }
 .detail-field:last-child { border-bottom: none; }
 
 /* TL handle is hidden (width:0) — label text starts at natural left edge */
-.detail-module-group .detail-field { padding-left: 32px; }
+.detail-module-group .detail-field { padding-left: 61px; }
 .detail-section-group > .detail-field { padding-left: 4px; }
 
 /* TL cross-TM drop indicators */
@@ -1122,13 +1122,31 @@ a:hover { text-decoration: underline; }
   border-top: 1px solid var(--border);
 }
 .comment-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0 8px;
+}
+.comment-section-title {
   font-size: 10px;
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 2px 0 8px;
 }
+.comment-load-all-link {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+.comment-load-all-link:hover { opacity: 0.75; }
 .comment-thread-fixed {
   height: 220px;
   overflow-y: auto;
@@ -1137,18 +1155,6 @@ a:hover { text-decoration: underline; }
   flex-direction: column;
   gap: 6px;
 }
-.comment-load-more {
-  align-self: flex-start;
-  font-size: 11px;
-  color: var(--accent-blue);
-  padding: 3px 6px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: none;
-  border: none;
-  font-family: inherit;
-}
-.comment-load-more:hover { background: var(--accent-blue-bg); }
 
 /* keep .comment-thread for any legacy references */
 .comment-thread {

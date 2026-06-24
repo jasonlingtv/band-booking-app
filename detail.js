@@ -1898,17 +1898,23 @@ const DetailPanel = (() => {
     return inputWrap;
   }
 
-  const COMMENT_INLINE_COUNT = 4;
-
   function _renderCommentSection(container, task) {
     const section = document.createElement('div');
     section.className = 'comment-section';
     container.appendChild(section);
 
-    const hdr = document.createElement('div');
-    hdr.className = 'comment-section-header';
-    hdr.textContent = 'Comments';
-    section.appendChild(hdr);
+    const hdrWrap = document.createElement('div');
+    hdrWrap.className = 'comment-section-header';
+    const hdrLabel = document.createElement('span');
+    hdrLabel.className = 'comment-section-title';
+    hdrLabel.textContent = 'Comments';
+    hdrWrap.appendChild(hdrLabel);
+    const loadAllLink = document.createElement('button');
+    loadAllLink.className = 'comment-load-all-link';
+    loadAllLink.style.display = 'none';
+    loadAllLink.addEventListener('click', () => _openCommentPane(task));
+    hdrWrap.appendChild(loadAllLink);
+    section.appendChild(hdrWrap);
 
     const thread = document.createElement('div');
     thread.className = 'comment-thread-fixed';
@@ -1918,17 +1924,13 @@ const DetailPanel = (() => {
       thread.innerHTML = '';
       const t = DataLayer.getTask(task.id);
       const comments = t ? (t.comments || []) : [];
-      const olderCount = Math.max(0, comments.length - COMMENT_INLINE_COUNT);
-      if (olderCount > 0) {
-        const btn = document.createElement('button');
-        btn.className = 'comment-load-more';
-        btn.textContent = '↑ Load more (' + olderCount + ' older)';
-        btn.addEventListener('click', () => _openCommentPane(task));
-        thread.appendChild(btn);
+      if (comments.length > 0) {
+        loadAllLink.textContent = '· Load all ' + comments.length;
+        loadAllLink.style.display = '';
+      } else {
+        loadAllLink.style.display = 'none';
       }
-      comments.slice(Math.max(0, comments.length - COMMENT_INLINE_COUNT)).forEach(c => {
-        thread.appendChild(_makeCommentBubble(c));
-      });
+      comments.forEach(c => thread.appendChild(_makeCommentBubble(c)));
       thread.scrollTop = thread.scrollHeight;
     }
 
@@ -1958,6 +1960,8 @@ const DetailPanel = (() => {
     closeBtn.addEventListener('click', () => {
       document.getElementById('app').classList.remove('comment-pane-open');
       _refreshPaneComments = null;
+      const inlineSection = document.querySelector('.comment-section');
+      if (inlineSection) inlineSection.style.display = '';
     });
     hdr.appendChild(closeBtn);
     const title = document.createElement('span');
@@ -1984,6 +1988,11 @@ const DetailPanel = (() => {
     }));
 
     renderPane();
+
+    // Hide inline comment section — all comments are now in the pane
+    const inlineSection = document.querySelector('.comment-section');
+    if (inlineSection) inlineSection.style.display = 'none';
+
     document.getElementById('app').classList.add('comment-pane-open');
   }
 
