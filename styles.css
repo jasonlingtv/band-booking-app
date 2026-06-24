@@ -785,7 +785,7 @@ a:hover { text-decoration: underline; }
 .detail-field:last-child { border-bottom: none; }
 
 /* TL handle is hidden (width:0) — label text starts at natural left edge */
-.detail-module-group .detail-field { padding-left: 61px; }
+.detail-module-group .detail-field { padding-left: 41px; }
 .detail-section-group > .detail-field { padding-left: 4px; }
 
 /* TL cross-TM drop indicators */
