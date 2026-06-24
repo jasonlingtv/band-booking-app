@@ -62,10 +62,14 @@ const DetailPanel = (() => {
         pane.innerHTML = '';
         delete pane.dataset.taskId;
       }
+      const bottom = document.getElementById('detail-bottom');
+      if (bottom) bottom.style.display = '';
     }
     const panel = document.getElementById('detail-panel');
     const content = document.getElementById('detail-content');
     content.innerHTML = '';
+    const bottom = document.getElementById('detail-bottom');
+    if (bottom) bottom.innerHTML = '';
 
     const task = DataLayer.getTask(taskId);
     if (!task) { panel.classList.add('hidden'); return; }
@@ -106,7 +110,7 @@ const DetailPanel = (() => {
       _renderTemplateSections(content, task, team, template, editCtx, isNewTask);
     }
 
-    _renderCommentSection(content, task);
+    _renderCommentSection(bottom || content, task);
   }
 
   function hide() {
@@ -1960,8 +1964,8 @@ const DetailPanel = (() => {
     closeBtn.addEventListener('click', () => {
       document.getElementById('app').classList.remove('comment-pane-open');
       _refreshPaneComments = null;
-      const inlineSection = document.querySelector('.comment-section');
-      if (inlineSection) inlineSection.style.display = '';
+      const detailBottom = document.getElementById('detail-bottom');
+      if (detailBottom) detailBottom.style.display = '';
     });
     hdr.appendChild(closeBtn);
     const title = document.createElement('span');
@@ -1990,8 +1994,8 @@ const DetailPanel = (() => {
     renderPane();
 
     // Hide inline comment section — all comments are now in the pane
-    const inlineSection = document.querySelector('.comment-section');
-    if (inlineSection) inlineSection.style.display = 'none';
+    const detailBottom = document.getElementById('detail-bottom');
+    if (detailBottom) detailBottom.style.display = 'none';
 
     document.getElementById('app').classList.add('comment-pane-open');
   }

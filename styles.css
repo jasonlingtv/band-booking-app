@@ -559,7 +559,20 @@ a:hover { text-decoration: underline; }
   flex: 1;
   overflow-y: auto;
   position: relative;
-  padding-bottom: 40px;
+  padding-bottom: 16px;
+}
+
+#detail-bottom {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  padding: 0 16px;
+}
+
+#detail-bottom .comment-section {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 10px;
 }
 
 #detail-close {
