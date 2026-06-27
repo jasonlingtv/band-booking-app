@@ -55,24 +55,21 @@ a:hover { text-decoration: underline; }
 #sidebar-hamburger {
   display: none;
   position: absolute;
-  top: 10px;
+  top: 0;
   left: 0;
-  width: 16px;
-  height: 36px;
-  background: none;
-  border: none;
-  cursor: pointer;
+  width: 56px;
+  height: 56px;
   color: var(--text-secondary);
-  font-size: 10px;
-  padding: 0;
+  font-size: 16px;
+  pointer-events: none;
   align-items: center;
   justify-content: center;
   z-index: 10;
 }
 
 #app.dashboard-sidebar-collapsed #sidebar {
-  width: 16px;
-  min-width: 16px;
+  width: 56px;
+  min-width: 56px;
 }
 
 #app.dashboard-sidebar-collapsed #sidebar.sidebar--hover-open {
