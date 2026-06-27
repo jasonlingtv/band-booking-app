@@ -124,7 +124,7 @@ const Dashboard = (() => {
     _setupPanelHoverListeners();
 
     const wrap = document.createElement('div');
-    wrap.className = 'dash-wrap';
+    wrap.className = 'dash-wrap dash-template-list-wrap';
 
     const header = document.createElement('div');
     header.className = 'dash-header';
@@ -262,14 +262,23 @@ const Dashboard = (() => {
     nameEl.className = 'dash-template-name';
     nameEl.textContent = tmpl.name || '(Unnamed)';
 
-    const psCount = (tmpl.projectSections || []).length;
     const tsCount = (tmpl.taskSections || []).length;
     const meta = document.createElement('span');
     meta.className = 'dash-template-meta';
-    meta.textContent = `${psCount} project section${psCount !== 1 ? 's' : ''} · ${tsCount} task section${tsCount !== 1 ? 's' : ''}`;
+    meta.textContent = `${tsCount} task section${tsCount !== 1 ? 's' : ''}`;
 
     const actions = document.createElement('div');
     actions.className = 'dash-template-actions';
+
+    // MEGA_ADMIN_ONLY — hide this button for all other user roles when auth is implemented
+    const editBtn = document.createElement('button');
+    editBtn.className = 'dash-btn-secondary';
+    editBtn.textContent = 'Edit';
+    editBtn.addEventListener('click', () => {
+      _editingId = tmpl.id;
+      _draft = JSON.parse(JSON.stringify(tmpl));
+      render();
+    });
 
     const hideBtn = document.createElement('button');
     hideBtn.className = 'dash-btn-secondary';
@@ -281,6 +290,7 @@ const Dashboard = (() => {
     customBtn.textContent = 'Customise';
     customBtn.addEventListener('click', () => { DataLayer.customiseDefaultTemplate(tmpl.id); render(); });
 
+    actions.appendChild(editBtn);
     actions.appendChild(hideBtn);
     actions.appendChild(customBtn);
     row.appendChild(nameEl);
@@ -328,11 +338,10 @@ const Dashboard = (() => {
     nameEl.className = 'dash-template-name';
     nameEl.textContent = tmpl.name || '(Unnamed)';
 
-    const psCount = (tmpl.projectSections || []).length;
     const tsCount = (tmpl.taskSections || []).length;
     const meta = document.createElement('span');
     meta.className = 'dash-template-meta';
-    meta.textContent = `${psCount} project section${psCount !== 1 ? 's' : ''} · ${tsCount} task section${tsCount !== 1 ? 's' : ''}`;
+    meta.textContent = `${tsCount} task section${tsCount !== 1 ? 's' : ''}`;
 
     const actions = document.createElement('div');
     actions.className = 'dash-template-actions';
@@ -564,28 +573,16 @@ const Dashboard = (() => {
   }
 
   function _renderEditor(el) {
-    // Two-column layout: editor on left, live preview on right
-    const layout = document.createElement('div');
-    layout.className = 'editor-layout';
-    el.appendChild(layout);
-
+    // Full-width form; live preview uses the standard #detail-panel
     const wrap = document.createElement('div');
-    wrap.className = 'editor-col';
-    layout.appendChild(wrap);
+    wrap.className = 'dash-wrap';
+    el.appendChild(wrap);
 
-    const previewCol = document.createElement('div');
-    previewCol.className = 'editor-preview-col';
-    layout.appendChild(previewCol);
-    _previewEl = previewCol;
+    _previewEl = null;
+    _previewTemplateId = 'editor'; // ensures clearTimers() hides the panel on back/save/cancel
 
     _refreshEditorPreview = function() {
-      if (!_previewEl) return;
-      _previewEl.innerHTML = '';
-      const heading = document.createElement('div');
-      heading.className = 'editor-preview-heading';
-      heading.textContent = _draft.name ? `"${_draft.name}"` : 'Template preview';
-      _previewEl.appendChild(heading);
-      _buildTemplatePreviewContent(_previewEl, _draft);
+      _renderTemplatePreviewInPanel(_draft);
     };
     _refreshEditorPreview();
 

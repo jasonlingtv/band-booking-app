@@ -1552,6 +1552,11 @@ a:hover { text-decoration: underline; }
   max-width: 680px;
 }
 
+.dash-template-list-wrap {
+  max-width: min(460px, calc(55vw - 285px));
+  min-width: 340px;
+}
+
 .dash-header {
   display: flex;
   align-items: center;
