@@ -387,6 +387,13 @@ const Dashboard = (() => {
     _buildTemplatePreviewContent(content, template);
   }
 
+  function _termLabel(text) {
+    const el = document.createElement('div');
+    el.className = 'tmpl-terminology-label';
+    el.textContent = text;
+    return el;
+  }
+
   function _buildTemplatePreviewContent(container, template) {
     if (!template) return;
 
@@ -446,6 +453,8 @@ const Dashboard = (() => {
       group.className = 'detail-section-group';
       if (tsIdx > 0) group.classList.add('collapsed');
 
+      group.appendChild(_termLabel('Task Section' + (ts.name ? ` (e.g. ${ts.name})` : '')));
+
       const heading = document.createElement('div');
       heading.className = 'detail-section-heading';
       const chev = document.createElement('span');
@@ -465,6 +474,7 @@ const Dashboard = (() => {
         if (tm.name) {
           const modGroup = document.createElement('div');
           modGroup.className = 'detail-module-group' + (tm.defaultOpen ? '' : ' collapsed');
+          modGroup.appendChild(_termLabel('Task Module' + (tm.name ? ` (e.g. ${tm.name})` : '')));
           const modHd = document.createElement('div');
           modHd.className = 'detail-module-heading';
           const modChev = document.createElement('span');
@@ -494,6 +504,10 @@ const Dashboard = (() => {
   function _buildPreviewField(field) {
     const row = document.createElement('div');
     row.className = 'detail-field';
+
+    if (!field.hideLabel && field.name) {
+      row.appendChild(_termLabel(`Task Label (e.g. ${field.name})`));
+    }
 
     const label = document.createElement('div');
     label.className = 'detail-field-label';
