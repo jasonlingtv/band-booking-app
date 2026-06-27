@@ -2,8 +2,9 @@
 const Dashboard = (() => {
   'use strict';
 
-  let _draft = null;      // deep clone of template being edited; null when on list view
-  let _editingId = null;  // id of template being edited; null for a new template
+  let _draft = null;        // deep clone of template being edited; null when on list view
+  let _editingId = null;    // id of template being edited; null for a new template
+  let _isNewDefault = false; // true when creating a new default template
   let _dashTab = 'templates'; // 'templates' | 'todo'
   let _todoTimer = null;
   let _hoverShowTimer = null;
@@ -64,6 +65,7 @@ const Dashboard = (() => {
     }
     _previewEl = null;
     _refreshEditorPreview = null;
+    _isNewDefault = false;
   }
 
   const FIELD_TYPES = [
@@ -126,82 +128,92 @@ const Dashboard = (() => {
     const wrap = document.createElement('div');
     wrap.className = 'dash-wrap dash-template-list-wrap';
 
+    // ── Header ────────────────────────────────────────────────────────────────
     const header = document.createElement('div');
     header.className = 'dash-header';
     const title = document.createElement('h2');
     title.className = 'dash-title';
     title.textContent = 'Templates';
+
+    const headerBtns = document.createElement('div');
+    headerBtns.style.cssText = 'display:flex;gap:8px;align-items:center;';
+
     const createBtn = document.createElement('button');
     createBtn.className = 'dash-btn-primary';
     createBtn.textContent = '+ Create New Template';
     createBtn.addEventListener('click', () => {
+      _isNewDefault = false;
       _editingId = null;
       _draft = _newDraft();
       render();
     });
+
+    // MEGA_MASTER_ONLY — hide this button for all other user roles when auth is implemented
+    const createDefaultBtn = document.createElement('button');
+    createDefaultBtn.className = 'dash-btn-secondary';
+    createDefaultBtn.textContent = '+ Create New Default Template';
+    createDefaultBtn.addEventListener('click', () => {
+      _isNewDefault = true;
+      _editingId = null;
+      _draft = _newDraft();
+      render();
+    });
+
+    headerBtns.appendChild(createBtn);
+    headerBtns.appendChild(createDefaultBtn);
     header.appendChild(title);
-    header.appendChild(createBtn);
+    header.appendChild(headerBtns);
     wrap.appendChild(header);
 
-    const defaultIds = new Set(DEFAULT_TEMPLATES.map(t => t.id));
-    const hiddenIds = new Set(DataLayer.getHiddenDefaultTemplates());
     const allTemplates = DataLayer.getTemplates();
-    const defaultTemplates = allTemplates.filter(t => defaultIds.has(t.id));
-    const myTemplates = allTemplates.filter(t => !defaultIds.has(t.id));
+    const defaultTemplates = allTemplates.filter(t => DataLayer.isDefaultTemplate(t.id));
+    const myTemplates = allTemplates.filter(t => !DataLayer.isDefaultTemplate(t.id));
 
     // ── Default Templates ────────────────────────────────────────────────────
     const defSection = document.createElement('div');
     defSection.className = 'dash-template-section';
 
-    const defTitle = document.createElement('div');
-    defTitle.className = 'dash-template-section-title';
-    defTitle.textContent = 'Default Templates';
-    defSection.appendChild(defTitle);
+    const defTitleRow = document.createElement('div');
+    defTitleRow.className = 'dash-template-section-title';
 
-    const visibleDefaults = defaultTemplates.filter(t => !hiddenIds.has(t.id));
-    const hiddenDefaults = defaultTemplates.filter(t => hiddenIds.has(t.id));
+    const defTitleText = document.createElement('span');
+    defTitleText.textContent = 'Default Templates';
 
-    if (visibleDefaults.length > 0) {
+    const toggleLabel = document.createElement('label');
+    toggleLabel.className = 'toggle-switch';
+    const toggleInput = document.createElement('input');
+    toggleInput.type = 'checkbox';
+    toggleInput.checked = DataLayer.getDefaultTemplatesVisible();
+    const toggleSlider = document.createElement('span');
+    toggleSlider.className = 'toggle-slider';
+    toggleLabel.appendChild(toggleInput);
+    toggleLabel.appendChild(toggleSlider);
+
+    defTitleRow.appendChild(defTitleText);
+    defTitleRow.appendChild(toggleLabel);
+    defSection.appendChild(defTitleRow);
+
+    const defContent = document.createElement('div');
+    defContent.style.display = DataLayer.getDefaultTemplatesVisible() ? '' : 'none';
+
+    toggleInput.addEventListener('change', () => {
+      DataLayer.setDefaultTemplatesVisible(toggleInput.checked);
+      defContent.style.display = toggleInput.checked ? '' : 'none';
+    });
+
+    if (defaultTemplates.length > 0) {
       const defList = document.createElement('div');
       defList.className = 'dash-template-list';
-      visibleDefaults.forEach(tmpl => defList.appendChild(_renderDefaultTemplateRow(tmpl)));
-      defSection.appendChild(defList);
-    } else if (hiddenDefaults.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'dash-empty';
-      empty.textContent = 'No default templates.';
-      defSection.appendChild(empty);
+      defaultTemplates.forEach(tmpl => defList.appendChild(_renderDefaultTemplateRow(tmpl)));
+      defContent.appendChild(defList);
     } else {
       const empty = document.createElement('p');
       empty.className = 'dash-empty';
-      empty.textContent = 'All default templates are hidden.';
-      defSection.appendChild(empty);
+      empty.textContent = 'No default templates.';
+      defContent.appendChild(empty);
     }
 
-    if (hiddenDefaults.length > 0) {
-      let hiddenExpanded = false;
-      const showHiddenBtn = document.createElement('button');
-      showHiddenBtn.className = 'dash-show-hidden-btn';
-      showHiddenBtn.textContent = `Show ${hiddenDefaults.length} hidden`;
-
-      const hiddenList = document.createElement('div');
-      hiddenList.className = 'dash-template-list';
-      hiddenList.style.display = 'none';
-      hiddenList.style.marginTop = '6px';
-      hiddenDefaults.forEach(tmpl => hiddenList.appendChild(_renderHiddenDefaultTemplateRow(tmpl)));
-
-      showHiddenBtn.addEventListener('click', () => {
-        hiddenExpanded = !hiddenExpanded;
-        hiddenList.style.display = hiddenExpanded ? '' : 'none';
-        showHiddenBtn.textContent = hiddenExpanded
-          ? `Hide ${hiddenDefaults.length} hidden`
-          : `Show ${hiddenDefaults.length} hidden`;
-      });
-
-      defSection.appendChild(showHiddenBtn);
-      defSection.appendChild(hiddenList);
-    }
-
+    defSection.appendChild(defContent);
     wrap.appendChild(defSection);
 
     // ── My Templates ─────────────────────────────────────────────────────────
@@ -270,60 +282,25 @@ const Dashboard = (() => {
     const actions = document.createElement('div');
     actions.className = 'dash-template-actions';
 
-    // MEGA_ADMIN_ONLY — hide this button for all other user roles when auth is implemented
-    const editBtn = document.createElement('button');
-    editBtn.className = 'dash-btn-secondary';
-    editBtn.textContent = 'Edit';
-    editBtn.addEventListener('click', () => {
-      _editingId = tmpl.id;
-      _draft = JSON.parse(JSON.stringify(tmpl));
-      render();
-    });
-
-    const hideBtn = document.createElement('button');
-    hideBtn.className = 'dash-btn-secondary';
-    hideBtn.textContent = 'Hide';
-    hideBtn.addEventListener('click', () => { DataLayer.hideDefaultTemplate(tmpl.id); render(); });
-
     const customBtn = document.createElement('button');
     customBtn.className = 'dash-btn-secondary';
     customBtn.textContent = 'Customise';
     customBtn.addEventListener('click', () => { DataLayer.customiseDefaultTemplate(tmpl.id); render(); });
 
-    actions.appendChild(editBtn);
-    actions.appendChild(hideBtn);
+    // MEGA_MASTER_ONLY — hide this button for all other user roles when auth is implemented
+    const masterEditBtn = document.createElement('button');
+    masterEditBtn.className = 'dash-btn-secondary';
+    masterEditBtn.textContent = 'Master Edit';
+    masterEditBtn.addEventListener('click', () => {
+      _editingId = tmpl.id;
+      _draft = JSON.parse(JSON.stringify(tmpl));
+      render();
+    });
+
     actions.appendChild(customBtn);
+    actions.appendChild(masterEditBtn);
     row.appendChild(nameEl);
     row.appendChild(meta);
-    row.appendChild(actions);
-
-    _addTemplateRowHover(row, tmpl);
-    return row;
-  }
-
-  function _renderHiddenDefaultTemplateRow(tmpl) {
-    const row = document.createElement('div');
-    row.className = 'dash-template-row dash-template-row--faded';
-
-    const nameEl = document.createElement('span');
-    nameEl.className = 'dash-template-name';
-    nameEl.textContent = tmpl.name || '(Unnamed)';
-
-    const badge = document.createElement('span');
-    badge.className = 'dash-hidden-badge';
-    badge.textContent = 'Hidden';
-
-    const actions = document.createElement('div');
-    actions.className = 'dash-template-actions';
-
-    const restoreBtn = document.createElement('button');
-    restoreBtn.className = 'dash-btn-secondary';
-    restoreBtn.textContent = 'Restore';
-    restoreBtn.addEventListener('click', () => { DataLayer.restoreDefaultTemplate(tmpl.id); render(); });
-
-    actions.appendChild(restoreBtn);
-    row.appendChild(nameEl);
-    row.appendChild(badge);
     row.appendChild(actions);
 
     _addTemplateRowHover(row, tmpl);
@@ -596,7 +573,7 @@ const Dashboard = (() => {
     // Heading
     const heading = document.createElement('h2');
     heading.className = 'dash-title';
-    heading.textContent = _editingId ? 'Edit Template' : 'New Template';
+    heading.textContent = _editingId ? 'Edit Template' : (_isNewDefault ? 'New Default Template' : 'New Template');
     heading.style.marginBottom = '20px';
     wrap.appendChild(heading);
 
@@ -1223,6 +1200,9 @@ const Dashboard = (() => {
 
     const tmpl = JSON.parse(JSON.stringify(_draft));
     tmpl.name = tmpl.name.trim();
+
+    if (_isNewDefault) { tmpl.isDefault = true; }
+    _isNewDefault = false;
 
     if (_editingId) {
       DataLayer.updateTemplate(_editingId, tmpl);

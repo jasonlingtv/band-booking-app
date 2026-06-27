@@ -67,7 +67,7 @@ const DataLayer = (() => {
   }
 
   function _defaultData() {
-    return { teams: [], activeProjectId: null, activeTaskId: null, activeView: 'list', templates: [], hiddenDefaultTemplates: [] };
+    return { teams: [], activeProjectId: null, activeTaskId: null, activeView: 'list', templates: [], hiddenDefaultTemplates: [], defaultTemplatesVisible: true };
   }
 
   // ── Persistence ───────────────────────────────────────────────────────────
@@ -322,6 +322,8 @@ const DataLayer = (() => {
 
     // 10. Ensure hiddenDefaultTemplates exists
     if (!_data.hiddenDefaultTemplates) { _data.hiddenDefaultTemplates = []; dirty = true; }
+    // 11. Ensure defaultTemplatesVisible exists
+    if (_data.defaultTemplatesVisible === undefined) { _data.defaultTemplatesVisible = true; dirty = true; }
 
     if (dirty) saveData();
   }
@@ -397,7 +399,18 @@ const DataLayer = (() => {
   }
 
   function isDefaultTemplate(id) {
-    return DEFAULT_TEMPLATES.some(t => t.id === id);
+    if (DEFAULT_TEMPLATES.some(t => t.id === id)) return true;
+    const tmpl = getTemplate(id);
+    return tmpl ? !!tmpl.isDefault : false;
+  }
+
+  function getDefaultTemplatesVisible() {
+    return _data.defaultTemplatesVisible !== false;
+  }
+
+  function setDefaultTemplatesVisible(val) {
+    _data.defaultTemplatesVisible = !!val;
+    saveData();
   }
 
   function getHiddenDefaultTemplates() {
@@ -757,7 +770,8 @@ const DataLayer = (() => {
     loadData, saveData,
     exportData, importData,
     getTemplates, getTemplate, getProjectTemplate, addTemplate, updateTemplate, deleteTemplate,
-    isDefaultTemplate, getHiddenDefaultTemplates, hideDefaultTemplate, restoreDefaultTemplate,
+    isDefaultTemplate, getDefaultTemplatesVisible, setDefaultTemplatesVisible,
+    getHiddenDefaultTemplates, hideDefaultTemplate, restoreDefaultTemplate,
     customiseDefaultTemplate, duplicateTemplate,
     getTeams, getTeam, addTeam, updateTeam, deleteTeam,
     getProject, getProjectTeam, addProject, updateProject, deleteProject,

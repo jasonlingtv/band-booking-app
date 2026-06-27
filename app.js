@@ -61,6 +61,15 @@
       e.target.value = '';
     });
 
+    // Sidebar hover-open while Dashboard is active
+    const sidebarEl = document.getElementById('sidebar');
+    sidebarEl.addEventListener('mouseenter', () => {
+      if (_dashboardActive) sidebarEl.classList.add('sidebar--hover-open');
+    });
+    sidebarEl.addEventListener('mouseleave', () => {
+      sidebarEl.classList.remove('sidebar--hover-open');
+    });
+
     // Gear / Dashboard button
     document.getElementById('dashboard-btn').addEventListener('click', () => {
       if (_dashboardActive) {
@@ -141,6 +150,7 @@
     DataLayer.setActiveTaskId(null);
     DetailPanel.hide();
 
+    document.getElementById('app').classList.add('dashboard-sidebar-collapsed');
     document.getElementById('project-title').textContent = 'Dashboard';
     document.getElementById('view-tabs').classList.add('hidden');
     document.getElementById('list-view').classList.add('hidden');
@@ -148,12 +158,14 @@
     document.getElementById('dashboard-view').classList.remove('hidden');
 
     Dashboard.render();
-    Sidebar.render(); // update gear icon active state
+    Sidebar.render();
   }
 
   function _hideDashboard() {
     Dashboard.clearTimers();
     _dashboardActive = false;
+    document.getElementById('app').classList.remove('dashboard-sidebar-collapsed');
+    document.getElementById('sidebar').classList.remove('sidebar--hover-open');
     document.getElementById('dashboard-view').classList.add('hidden');
     document.getElementById('view-tabs').classList.remove('hidden');
     _renderProjectTitle();

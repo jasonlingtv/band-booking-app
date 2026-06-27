@@ -48,6 +48,46 @@ a:hover { text-decoration: underline; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  transition: width 250ms ease, min-width 250ms ease;
+}
+
+#sidebar-hamburger {
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 0;
+  width: 16px;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+#app.dashboard-sidebar-collapsed #sidebar {
+  width: 16px;
+  min-width: 16px;
+}
+
+#app.dashboard-sidebar-collapsed #sidebar.sidebar--hover-open {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  z-index: 20;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.08);
+}
+
+#app.dashboard-sidebar-collapsed #sidebar-hamburger {
+  display: flex;
+}
+
+#app.dashboard-sidebar-collapsed #sidebar.sidebar--hover-open #sidebar-hamburger {
+  display: none;
 }
 
 #sidebar-header {
@@ -2430,7 +2470,52 @@ a:hover { text-decoration: underline; }
   margin-bottom: 10px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 32px;
+  height: 18px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 9px;
+  transition: background 0.15s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.15s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(14px); }
 
 .dash-show-hidden-btn {
   margin-top: 8px;
