@@ -384,40 +384,35 @@ const ListView = (() => {
 
     function refreshDisplay() {
       col.innerHTML = '';
-      const t = DataLayer.getTask(task.id);
-      const note = t ? (t.listNote || '') : '';
       const span = document.createElement('span');
-      span.className = 'task-note-text' + (note ? '' : ' placeholder');
-      span.textContent = note || 'Add a note…';
+      span.className = 'task-note-text placeholder';
+      span.textContent = 'Add a note…';
       col.appendChild(span);
     }
 
     col.addEventListener('click', (e) => {
       e.stopPropagation();
       if (col.querySelector('input')) return;
-      const t = DataLayer.getTask(task.id);
-      const existing = t ? (t.listNote || '') : '';
       col.innerHTML = '';
 
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'task-notes-input';
-      input.value = existing;
+      input.value = '';
       input.placeholder = 'Add a note…';
       let committed = false;
 
       function commitNote() {
         if (committed) return;
         committed = true;
-        const changes = { listNote: input.value };
-        if (input.value.trim()) {
-          if (input.value !== existing) changes.listNoteTimestamp = new Date().toISOString();
-        } else {
-          changes.listNoteTimestamp = null;
-          changes.noteDone = false;
+        const text = input.value.trim();
+        if (text) {
+          const t = DataLayer.getTask(task.id);
+          const notes = t && t.listNotes ? [...t.listNotes] : [];
+          notes.push({ id: Utils.generateId(), text, timestamp: new Date().toISOString(), done: false });
+          DataLayer.updateTask(task.id, { listNotes: notes });
+          UIHelpers.showSaved();
         }
-        DataLayer.updateTask(task.id, changes);
-        UIHelpers.showSaved();
         refreshDisplay();
       }
 

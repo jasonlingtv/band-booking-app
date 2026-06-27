@@ -797,8 +797,14 @@ const Dashboard = (() => {
         (team.projects || []).forEach(project => {
           (project.sections || []).forEach(section => {
             (section.tasks || []).forEach(task => {
-              if (task.listNote && task.listNote.trim()) {
-                items.push({ task, team, project });
+              (task.listNotes || []).forEach(note => {
+                if (note.text && note.text.trim()) {
+                  items.push({ note, task, team, project });
+                }
+              });
+              // Legacy: single listNote (migration)
+              if ((!task.listNotes || task.listNotes.length === 0) && task.listNote && task.listNote.trim()) {
+                items.push({ note: { id: 'legacy-' + task.id, text: task.listNote, timestamp: task.listNoteTimestamp, done: task.noteDone || false }, task, team, project });
               }
             });
           });
@@ -825,21 +831,29 @@ const Dashboard = (() => {
       Utils.EventBus.emit('todo:navigate', { taskId, projectId });
     }
 
-    function _toggleDone(taskId, currentDone) {
-      DataLayer.updateTask(taskId, { noteDone: !currentDone });
+    function _toggleDone(noteId, taskId, currentDone) {
+      const t = DataLayer.getTask(taskId);
+      if (!t) return;
+      if (t.listNotes) {
+        const notes = t.listNotes.map(n => n.id === noteId ? { ...n, done: !currentDone } : n);
+        DataLayer.updateTask(taskId, { listNotes: notes });
+      } else {
+        // Legacy single-note fallback
+        DataLayer.updateTask(taskId, { noteDone: !currentDone });
+      }
       _clearTodoTimer();
       render();
     }
 
     const allItems = _collectItems();
     const active = allItems
-      .filter(i => !i.task.noteDone)
+      .filter(i => !i.note.done)
       .sort((a, b) => {
-        const ta = a.task.listNoteTimestamp || '0';
-        const tb = b.task.listNoteTimestamp || '0';
+        const ta = a.note.timestamp || '0';
+        const tb = b.note.timestamp || '0';
         return ta < tb ? -1 : ta > tb ? 1 : 0; // oldest first
       });
-    const completed = allItems.filter(i => i.task.noteDone);
+    const completed = allItems.filter(i => i.note.done);
 
     // ── Active items ─────────────────────────────────────────────────────
     const activeHeader = document.createElement('div');
@@ -855,8 +869,8 @@ const Dashboard = (() => {
     } else {
       const list = document.createElement('div');
       list.className = 'todo-list';
-      active.forEach(({ task, team, project }) => {
-        list.appendChild(_makeTodoItem(task, team, project, false));
+      active.forEach(item => {
+        list.appendChild(_makeTodoItem(item, false));
       });
       wrap.appendChild(list);
     }
@@ -869,8 +883,8 @@ const Dashboard = (() => {
       wrap.appendChild(compHeader);
       const compList = document.createElement('div');
       compList.className = 'todo-list';
-      completed.forEach(({ task, team, project }) => {
-        compList.appendChild(_makeTodoItem(task, team, project, true));
+      completed.forEach(item => {
+        compList.appendChild(_makeTodoItem(item, true));
       });
       wrap.appendChild(compList);
     }
@@ -888,14 +902,14 @@ const Dashboard = (() => {
       }, 30000); // update every 30s
     }
 
-    function _makeTodoItem(task, team, project, isDone) {
+    function _makeTodoItem({ note, task, team, project }, isDone) {
       const item = document.createElement('div');
       item.className = 'todo-item' + (isDone ? ' done' : '');
 
       // Checkbox
       const chk = document.createElement('div');
       chk.className = 'todo-checkbox' + (isDone ? ' checked' : '');
-      chk.addEventListener('click', (e) => { e.stopPropagation(); _toggleDone(task.id, isDone); });
+      chk.addEventListener('click', (e) => { e.stopPropagation(); _toggleDone(note.id, task.id, isDone); });
       item.appendChild(chk);
 
       // Text content
@@ -904,7 +918,7 @@ const Dashboard = (() => {
 
       const noteText = document.createElement('div');
       noteText.className = 'todo-note';
-      noteText.textContent = task.listNote;
+      noteText.textContent = note.text;
       body.appendChild(noteText);
 
       const meta = document.createElement('div');
@@ -929,8 +943,8 @@ const Dashboard = (() => {
 
       const age = document.createElement('span');
       age.className = 'todo-age';
-      age.dataset.ts = task.listNoteTimestamp || '';
-      age.textContent = task.listNoteTimestamp ? _humanAge(task.listNoteTimestamp) : '';
+      age.dataset.ts = note.timestamp || '';
+      age.textContent = note.timestamp ? _humanAge(note.timestamp) : '';
       body.appendChild(age);
 
       item.appendChild(body);
