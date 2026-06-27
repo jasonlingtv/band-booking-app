@@ -103,6 +103,8 @@
     Utils.EventBus.on('project:changed', () => {
       // Always exit dashboard when a project is selected
       _dashboardActive = false;
+      document.getElementById('app').classList.remove('dashboard-sidebar-collapsed');
+      document.getElementById('sidebar').classList.remove('sidebar--hover-open');
       document.getElementById('dashboard-view').classList.add('hidden');
       document.getElementById('view-tabs').classList.remove('hidden');
 

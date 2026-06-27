@@ -87,6 +87,23 @@ a:hover { text-decoration: underline; }
   display: none;
 }
 
+/* Hide all sidebar content when collapsed — only hamburger remains */
+#app.dashboard-sidebar-collapsed #sidebar-header,
+#app.dashboard-sidebar-collapsed #teams-list,
+#app.dashboard-sidebar-collapsed #sidebar-footer {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 150ms ease, visibility 150ms ease;
+}
+
+/* Restore content when sidebar is hover-opened */
+#app.dashboard-sidebar-collapsed #sidebar.sidebar--hover-open #sidebar-header,
+#app.dashboard-sidebar-collapsed #sidebar.sidebar--hover-open #teams-list,
+#app.dashboard-sidebar-collapsed #sidebar.sidebar--hover-open #sidebar-footer {
+  opacity: 1;
+  visibility: visible;
+}
+
 #sidebar-header {
   display: flex;
   align-items: center;
@@ -2472,47 +2489,21 @@ a:hover { text-decoration: underline; }
   justify-content: space-between;
 }
 
-/* Toggle switch */
-.toggle-switch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 32px;
-  height: 18px;
-  flex-shrink: 0;
+.dash-section-toggle-btn {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: #222;
+  color: #fff;
+  border: none;
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s;
 }
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-  position: absolute;
-}
-
-.toggle-slider {
-  position: absolute;
-  inset: 0;
-  background: var(--border);
-  border-radius: 9px;
-  transition: background 0.15s;
-}
-
-.toggle-slider::before {
-  content: '';
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  left: 3px;
-  top: 3px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.15s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-.toggle-switch input:checked + .toggle-slider { background: var(--accent); }
-.toggle-switch input:checked + .toggle-slider::before { transform: translateX(14px); }
+.dash-section-toggle-btn:hover { background: #000; }
 
 .dash-show-hidden-btn {
   margin-top: 8px;

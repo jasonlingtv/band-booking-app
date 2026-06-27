@@ -179,26 +179,22 @@ const Dashboard = (() => {
     const defTitleText = document.createElement('span');
     defTitleText.textContent = 'Default Templates';
 
-    const toggleLabel = document.createElement('label');
-    toggleLabel.className = 'toggle-switch';
-    const toggleInput = document.createElement('input');
-    toggleInput.type = 'checkbox';
-    toggleInput.checked = DataLayer.getDefaultTemplatesVisible();
-    const toggleSlider = document.createElement('span');
-    toggleSlider.className = 'toggle-slider';
-    toggleLabel.appendChild(toggleInput);
-    toggleLabel.appendChild(toggleSlider);
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'dash-section-toggle-btn';
+    toggleBtn.textContent = DataLayer.getDefaultTemplatesVisible() ? 'Hide' : 'Show';
 
     defTitleRow.appendChild(defTitleText);
-    defTitleRow.appendChild(toggleLabel);
+    defTitleRow.appendChild(toggleBtn);
     defSection.appendChild(defTitleRow);
 
     const defContent = document.createElement('div');
     defContent.style.display = DataLayer.getDefaultTemplatesVisible() ? '' : 'none';
 
-    toggleInput.addEventListener('change', () => {
-      DataLayer.setDefaultTemplatesVisible(toggleInput.checked);
-      defContent.style.display = toggleInput.checked ? '' : 'none';
+    toggleBtn.addEventListener('click', () => {
+      const newVal = !DataLayer.getDefaultTemplatesVisible();
+      DataLayer.setDefaultTemplatesVisible(newVal);
+      toggleBtn.textContent = newVal ? 'Hide' : 'Show';
+      defContent.style.display = newVal ? '' : 'none';
     });
 
     if (defaultTemplates.length > 0) {
