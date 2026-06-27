@@ -4,6 +4,14 @@ const Dashboard = (() => {
 
   let _draft = null;      // deep clone of template being edited; null when on list view
   let _editingId = null;  // id of template being edited; null for a new template
+  let _dashTab = 'templates'; // 'templates' | 'todo'
+  let _todoTimer = null;
+
+  function _clearTodoTimer() {
+    if (_todoTimer) { clearInterval(_todoTimer); _todoTimer = null; }
+  }
+
+  function clearTimers() { _clearTodoTimer(); }
 
   const FIELD_TYPES = [
     { value: 'text',               label: 'Text (single line)' },
@@ -29,10 +37,27 @@ const Dashboard = (() => {
   // ── Public entry point ────────────────────────────────────────────────────
 
   function render() {
+    _clearTodoTimer();
     const el = document.getElementById('dashboard-view');
     el.innerHTML = '';
     if (_draft !== null) {
       _renderEditor(el);
+      return;
+    }
+    // Tab bar
+    const tabBar = document.createElement('div');
+    tabBar.className = 'dash-tab-bar';
+    [['templates', 'Templates'], ['todo', 'To Do']].forEach(([id, label]) => {
+      const btn = document.createElement('button');
+      btn.className = 'dash-tab-btn' + (_dashTab === id ? ' active' : '');
+      btn.textContent = label;
+      btn.addEventListener('click', () => { _dashTab = id; render(); });
+      tabBar.appendChild(btn);
+    });
+    el.appendChild(tabBar);
+
+    if (_dashTab === 'todo') {
+      _renderTodo(el);
     } else {
       _renderList(el);
     }
@@ -759,5 +784,166 @@ const Dashboard = (() => {
     render();
   }
 
-  return { render };
+  // ── To Do list ────────────────────────────────────────────────────────────
+
+  function _renderTodo(el) {
+    const wrap = document.createElement('div');
+    wrap.className = 'dash-wrap';
+
+    // Gather all tasks with notes across all teams/projects
+    function _collectItems() {
+      const items = [];
+      DataLayer.getTeams().forEach(team => {
+        (team.projects || []).forEach(project => {
+          (project.sections || []).forEach(section => {
+            (section.tasks || []).forEach(task => {
+              if (task.listNote && task.listNote.trim()) {
+                items.push({ task, team, project });
+              }
+            });
+          });
+        });
+      });
+      return items;
+    }
+
+    function _humanAge(isoTs) {
+      if (!isoTs) return '';
+      const diff = Math.max(0, Date.now() - new Date(isoTs).getTime());
+      const totalMins = Math.floor(diff / 60000);
+      const days = Math.floor(totalMins / 1440);
+      const hours = Math.floor((totalMins % 1440) / 60);
+      const mins = totalMins % 60;
+      const parts = [];
+      if (days > 0) parts.push(days + 'd');
+      if (hours > 0) parts.push(hours + 'h');
+      if (mins > 0 || parts.length === 0) parts.push(mins + 'm');
+      return parts.join(' ') + ' ago';
+    }
+
+    function _navigate(taskId, projectId) {
+      Utils.EventBus.emit('todo:navigate', { taskId, projectId });
+    }
+
+    function _toggleDone(taskId, currentDone) {
+      DataLayer.updateTask(taskId, { noteDone: !currentDone });
+      _clearTodoTimer();
+      render();
+    }
+
+    const allItems = _collectItems();
+    const active = allItems
+      .filter(i => !i.task.noteDone)
+      .sort((a, b) => {
+        const ta = a.task.listNoteTimestamp || '0';
+        const tb = b.task.listNoteTimestamp || '0';
+        return ta < tb ? -1 : ta > tb ? 1 : 0; // oldest first
+      });
+    const completed = allItems.filter(i => i.task.noteDone);
+
+    // ── Active items ─────────────────────────────────────────────────────
+    const activeHeader = document.createElement('div');
+    activeHeader.className = 'todo-section-header';
+    activeHeader.textContent = active.length === 0 ? 'To Do — All clear!' : `To Do (${active.length})`;
+    wrap.appendChild(activeHeader);
+
+    if (active.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'dash-empty';
+      empty.textContent = 'No pending notes.';
+      wrap.appendChild(empty);
+    } else {
+      const list = document.createElement('div');
+      list.className = 'todo-list';
+      active.forEach(({ task, team, project }) => {
+        list.appendChild(_makeTodoItem(task, team, project, false));
+      });
+      wrap.appendChild(list);
+    }
+
+    // ── Completed items ──────────────────────────────────────────────────
+    if (completed.length > 0) {
+      const compHeader = document.createElement('div');
+      compHeader.className = 'todo-section-header todo-section-header--completed';
+      compHeader.textContent = `Completed (${completed.length})`;
+      wrap.appendChild(compHeader);
+      const compList = document.createElement('div');
+      compList.className = 'todo-list';
+      completed.forEach(({ task, team, project }) => {
+        compList.appendChild(_makeTodoItem(task, team, project, true));
+      });
+      wrap.appendChild(compList);
+    }
+
+    el.appendChild(wrap);
+
+    // Live-updating age timer
+    const ageEls = wrap.querySelectorAll('.todo-age');
+    if (ageEls.length > 0) {
+      _todoTimer = setInterval(() => {
+        ageEls.forEach(el => {
+          const ts = el.dataset.ts;
+          if (ts) el.textContent = _humanAge(ts);
+        });
+      }, 30000); // update every 30s
+    }
+
+    function _makeTodoItem(task, team, project, isDone) {
+      const item = document.createElement('div');
+      item.className = 'todo-item' + (isDone ? ' done' : '');
+
+      // Checkbox
+      const chk = document.createElement('div');
+      chk.className = 'todo-checkbox' + (isDone ? ' checked' : '');
+      chk.addEventListener('click', (e) => { e.stopPropagation(); _toggleDone(task.id, isDone); });
+      item.appendChild(chk);
+
+      // Text content
+      const body = document.createElement('div');
+      body.className = 'todo-body';
+
+      const noteText = document.createElement('div');
+      noteText.className = 'todo-note';
+      noteText.textContent = task.listNote;
+      body.appendChild(noteText);
+
+      const meta = document.createElement('div');
+      meta.className = 'todo-meta';
+
+      const taskName = document.createElement('span');
+      taskName.className = 'todo-task-name';
+      taskName.textContent = task.title || '(Untitled)';
+      meta.appendChild(taskName);
+
+      const sep = document.createElement('span');
+      sep.className = 'todo-sep';
+      sep.textContent = '·';
+      meta.appendChild(sep);
+
+      const proj = document.createElement('span');
+      proj.className = 'todo-project';
+      proj.textContent = team.name + ' / ' + project.name;
+      meta.appendChild(proj);
+
+      body.appendChild(meta);
+
+      const age = document.createElement('span');
+      age.className = 'todo-age';
+      age.dataset.ts = task.listNoteTimestamp || '';
+      age.textContent = task.listNoteTimestamp ? _humanAge(task.listNoteTimestamp) : '';
+      body.appendChild(age);
+
+      item.appendChild(body);
+
+      // Click to navigate (not on checkbox)
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.todo-checkbox')) return;
+        _navigate(task.id, project.id);
+      });
+
+      return item;
+    }
+  }
+
+  return { render, clearTimers };
 })();

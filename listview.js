@@ -409,7 +409,14 @@ const ListView = (() => {
       function commitNote() {
         if (committed) return;
         committed = true;
-        DataLayer.updateTask(task.id, { listNote: input.value });
+        const changes = { listNote: input.value };
+        if (input.value.trim()) {
+          if (input.value !== existing) changes.listNoteTimestamp = new Date().toISOString();
+        } else {
+          changes.listNoteTimestamp = null;
+          changes.noteDone = false;
+        }
+        DataLayer.updateTask(task.id, changes);
         UIHelpers.showSaved();
         refreshDisplay();
       }
@@ -476,6 +483,19 @@ const ListView = (() => {
       else if (key === 'date') row.appendChild(_makeDateCol(task));
       else if (key === 'notes') row.appendChild(_makeNotesCol(task));
     });
+
+    // Unread comment pulse
+    const taskComments = task.comments || [];
+    if (taskComments.length > 0) {
+      const lastRead = DetailPanel.getCommentReadTime(task.id);
+      const hasUnread = taskComments.some(c => c.sender !== 'Jason' && (!lastRead || c.timestamp > lastRead));
+      if (hasUnread) {
+        const pulse = document.createElement('div');
+        pulse.className = 'comment-unread-pulse';
+        pulse.title = 'Unread comment';
+        row.appendChild(pulse);
+      }
+    }
 
     // Menu button
     const menuBtn = document.createElement('button');

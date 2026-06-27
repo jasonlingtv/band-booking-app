@@ -83,6 +83,7 @@
       const activeTaskId = DataLayer.getActiveTaskId();
       if (!activeTaskId) return;
       if (e.target.closest('.task-row') || e.target.closest('.board-card')) return;
+      if (e.target.closest('#dashboard-view')) return;
       DataLayer.setActiveTaskId(null);
       DetailPanel.hide();
       ListView.render();
@@ -118,6 +119,16 @@
       }
     });
 
+    Utils.EventBus.on('todo:navigate', ({ taskId, projectId }) => {
+      _hideDashboard();
+      DataLayer.setActiveProjectId(projectId);
+      _renderProjectTitle();
+      _renderCurrentView();
+      Sidebar.render();
+      DataLayer.setActiveTaskId(taskId);
+      DetailPanel.render(taskId);
+    });
+
     // Restore detail panel if a task was active
     const activeTaskId = DataLayer.getActiveTaskId();
     if (activeTaskId && DataLayer.getTask(activeTaskId)) {
@@ -141,6 +152,7 @@
   }
 
   function _hideDashboard() {
+    Dashboard.clearTimers();
     _dashboardActive = false;
     document.getElementById('dashboard-view').classList.add('hidden');
     document.getElementById('view-tabs').classList.remove('hidden');

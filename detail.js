@@ -111,10 +111,36 @@ const DetailPanel = (() => {
     }
 
     _renderCommentSection(bottom || content, task);
+    _markCommentsRead(taskId);
   }
 
   function hide() {
     document.getElementById('detail-panel').classList.add('hidden');
+    // Close comment pane so it doesn't orphan after panel closes
+    document.getElementById('app').classList.remove('comment-pane-open');
+    _refreshPaneComments = null;
+    const pane = document.getElementById('comment-pane');
+    if (pane) { pane.innerHTML = ''; delete pane.dataset.taskId; }
+    const bottom = document.getElementById('detail-bottom');
+    if (bottom) bottom.style.display = '';
+  }
+
+  // ── Comment read tracking (localStorage, no re-render) ───────────────────
+  const _READ_KEY = 'band_booking_read';
+
+  function _markCommentsRead(taskId) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(_READ_KEY) || '{}');
+      stored[taskId] = new Date().toISOString();
+      localStorage.setItem(_READ_KEY, JSON.stringify(stored));
+    } catch (e) {}
+  }
+
+  function getCommentReadTime(taskId) {
+    try {
+      const stored = JSON.parse(localStorage.getItem(_READ_KEY) || '{}');
+      return stored[taskId] || null;
+    } catch (e) { return null; }
   }
 
   // ── Title ─────────────────────────────────────────────────────────────────
@@ -2592,5 +2618,5 @@ const DetailPanel = (() => {
     });
   }
 
-  return { render, hide, init };
+  return { render, hide, init, getCommentReadTime };
 })();
