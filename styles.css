@@ -1486,17 +1486,22 @@ a:hover { text-decoration: underline; }
   background: var(--bg-hover);
 }
 
-.sidebar-gear-btn {
-  width: 30px; height: 30px;
-  display: flex; align-items: center; justify-content: center;
+.sidebar-dashboard-btn {
+  width: 100%;
+  padding: 7px 10px;
+  background: var(--text);
+  color: var(--bg);
   border-radius: var(--radius-sm);
-  font-size: 15px;
-  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.1s, color 0.1s;
+  text-align: center;
+  letter-spacing: 0.02em;
+  border: none;
+  transition: opacity 0.1s;
 }
-.sidebar-gear-btn:hover { background: var(--bg-hover); color: var(--text); }
-.sidebar-gear-btn.active { background: var(--bg-active); color: var(--text); }
+.sidebar-dashboard-btn:hover { opacity: 0.82; }
+.sidebar-dashboard-btn.active { opacity: 0.65; }
 
 /* ── Shared button variants (used in dashboard) ────────────────────────── */
 
@@ -2403,4 +2408,114 @@ a:hover { text-decoration: underline; }
   font-family: inherit;
   color: var(--text);
   padding: 0;
+}
+
+/* ── Dashboard template sections ──────────────────────────────────────────── */
+
+.dash-template-section {
+  margin-bottom: 28px;
+}
+
+.dash-template-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.dash-show-hidden-btn {
+  margin-top: 8px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--accent-blue);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding-left: 0;
+}
+.dash-show-hidden-btn:hover { text-decoration: underline; }
+
+.dash-hidden-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-placeholder);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+
+.dash-template-row--faded { opacity: 0.55; }
+.dash-template-row--faded:hover { opacity: 1; }
+
+/* ── Template preview panel badge ─────────────────────────────────────────── */
+
+.tmpl-preview-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+  border-radius: 20px;
+  margin-bottom: 14px;
+}
+
+/* ── Editor two-column layout ─────────────────────────────────────────────── */
+
+.editor-layout {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.editor-col {
+  flex: 1;
+  min-width: 320px;
+}
+
+.editor-preview-col {
+  width: 340px;
+  min-width: 280px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+}
+
+.editor-preview-heading {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-preview-task-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  padding: 4px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
 }

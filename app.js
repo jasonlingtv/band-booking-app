@@ -141,7 +141,7 @@
     DataLayer.setActiveTaskId(null);
     DetailPanel.hide();
 
-    document.getElementById('project-title').textContent = 'Settings';
+    document.getElementById('project-title').textContent = 'Dashboard';
     document.getElementById('view-tabs').classList.add('hidden');
     document.getElementById('list-view').classList.add('hidden');
     document.getElementById('board-view').classList.add('hidden');

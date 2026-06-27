@@ -67,7 +67,7 @@ const DataLayer = (() => {
   }
 
   function _defaultData() {
-    return { teams: [], activeProjectId: null, activeTaskId: null, activeView: 'list', templates: [] };
+    return { teams: [], activeProjectId: null, activeTaskId: null, activeView: 'list', templates: [], hiddenDefaultTemplates: [] };
   }
 
   // ── Persistence ───────────────────────────────────────────────────────────
@@ -320,6 +320,9 @@ const DataLayer = (() => {
       }
     }
 
+    // 10. Ensure hiddenDefaultTemplates exists
+    if (!_data.hiddenDefaultTemplates) { _data.hiddenDefaultTemplates = []; dirty = true; }
+
     if (dirty) saveData();
   }
 
@@ -391,6 +394,52 @@ const DataLayer = (() => {
     if (!_data.templates) return;
     _data.templates = _data.templates.filter(t => t.id !== id);
     saveData();
+  }
+
+  function isDefaultTemplate(id) {
+    return DEFAULT_TEMPLATES.some(t => t.id === id);
+  }
+
+  function getHiddenDefaultTemplates() {
+    return _data.hiddenDefaultTemplates || [];
+  }
+
+  function hideDefaultTemplate(id) {
+    if (!_data.hiddenDefaultTemplates) _data.hiddenDefaultTemplates = [];
+    if (!_data.hiddenDefaultTemplates.includes(id)) {
+      _data.hiddenDefaultTemplates.push(id);
+      saveData();
+    }
+  }
+
+  function restoreDefaultTemplate(id) {
+    if (!_data.hiddenDefaultTemplates) return;
+    _data.hiddenDefaultTemplates = _data.hiddenDefaultTemplates.filter(i => i !== id);
+    saveData();
+  }
+
+  function customiseDefaultTemplate(id) {
+    const tmpl = getTemplate(id);
+    if (!tmpl) return null;
+    const copy = JSON.parse(JSON.stringify(tmpl));
+    copy.id = Utils.generateId();
+    copy.name = tmpl.name + ' (custom)';
+    if (!_data.templates) _data.templates = [];
+    _data.templates.push(copy);
+    saveData();
+    return copy;
+  }
+
+  function duplicateTemplate(id) {
+    const tmpl = getTemplate(id);
+    if (!tmpl) return null;
+    const copy = JSON.parse(JSON.stringify(tmpl));
+    copy.id = Utils.generateId();
+    copy.name = tmpl.name + ' (copy)';
+    if (!_data.templates) _data.templates = [];
+    _data.templates.push(copy);
+    saveData();
+    return copy;
   }
 
   // ── Teams ─────────────────────────────────────────────────────────────────
@@ -708,6 +757,8 @@ const DataLayer = (() => {
     loadData, saveData,
     exportData, importData,
     getTemplates, getTemplate, getProjectTemplate, addTemplate, updateTemplate, deleteTemplate,
+    isDefaultTemplate, getHiddenDefaultTemplates, hideDefaultTemplate, restoreDefaultTemplate,
+    customiseDefaultTemplate, duplicateTemplate,
     getTeams, getTeam, addTeam, updateTeam, deleteTeam,
     getProject, getProjectTeam, addProject, updateProject, deleteProject,
     getSections, getSection, getSectionProject, addSection, updateSection, deleteSection,

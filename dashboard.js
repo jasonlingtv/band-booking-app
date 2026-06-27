@@ -6,12 +6,65 @@ const Dashboard = (() => {
   let _editingId = null;  // id of template being edited; null for a new template
   let _dashTab = 'templates'; // 'templates' | 'todo'
   let _todoTimer = null;
+  let _hoverShowTimer = null;
+  let _hoverHideTimer = null;
+  let _mouseInPanel = false;
+  let _previewTaskId = null;     // task id being previewed on hover (To Do tab)
+  let _previewTemplateId = null; // template id being previewed on hover (Templates tab)
+  let _previewEl = null;         // live-preview column el (editor mode)
+  let _refreshEditorPreview = null; // fn that rebuilds _previewEl from _draft
 
   function _clearTodoTimer() {
     if (_todoTimer) { clearInterval(_todoTimer); _todoTimer = null; }
   }
 
-  function clearTimers() { _clearTodoTimer(); }
+  function _cleanupPanelHoverListeners() {
+    const panel = document.getElementById('detail-panel');
+    if (panel && panel._dashTodoEnter) {
+      panel.removeEventListener('mouseenter', panel._dashTodoEnter);
+      panel.removeEventListener('mouseleave', panel._dashTodoLeave);
+      delete panel._dashTodoEnter;
+      delete panel._dashTodoLeave;
+    }
+    _mouseInPanel = false;
+  }
+
+  function _setupPanelHoverListeners() {
+    _cleanupPanelHoverListeners();
+    const panel = document.getElementById('detail-panel');
+    if (!panel) return;
+    panel._dashTodoEnter = () => {
+      clearTimeout(_hoverHideTimer);
+      _hoverHideTimer = null;
+      _mouseInPanel = true;
+    };
+    panel._dashTodoLeave = () => {
+      _mouseInPanel = false;
+      _hoverHideTimer = setTimeout(() => {
+        if (_previewTaskId !== null || _previewTemplateId !== null) {
+          _previewTaskId = null;
+          _previewTemplateId = null;
+          DetailPanel.hide();
+        }
+      }, 350);
+    };
+    panel.addEventListener('mouseenter', panel._dashTodoEnter);
+    panel.addEventListener('mouseleave', panel._dashTodoLeave);
+  }
+
+  function clearTimers() {
+    _clearTodoTimer();
+    clearTimeout(_hoverShowTimer); _hoverShowTimer = null;
+    clearTimeout(_hoverHideTimer); _hoverHideTimer = null;
+    _cleanupPanelHoverListeners();
+    if (_previewTaskId !== null || _previewTemplateId !== null) {
+      _previewTaskId = null;
+      _previewTemplateId = null;
+      DetailPanel.hide();
+    }
+    _previewEl = null;
+    _refreshEditorPreview = null;
+  }
 
   const FIELD_TYPES = [
     { value: 'text',               label: 'Text (single line)' },
@@ -37,7 +90,7 @@ const Dashboard = (() => {
   // ── Public entry point ────────────────────────────────────────────────────
 
   function render() {
-    _clearTodoTimer();
+    clearTimers();
     const el = document.getElementById('dashboard-view');
     el.innerHTML = '';
     if (_draft !== null) {
@@ -66,16 +119,18 @@ const Dashboard = (() => {
   // ── List view ─────────────────────────────────────────────────────────────
 
   function _renderList(el) {
+    _previewEl = null;
+    _refreshEditorPreview = null;
+    _setupPanelHoverListeners();
+
     const wrap = document.createElement('div');
     wrap.className = 'dash-wrap';
 
     const header = document.createElement('div');
     header.className = 'dash-header';
-
     const title = document.createElement('h2');
     title.className = 'dash-title';
     title.textContent = 'Templates';
-
     const createBtn = document.createElement('button');
     createBtn.className = 'dash-btn-primary';
     createBtn.textContent = '+ Create New Template';
@@ -84,31 +139,188 @@ const Dashboard = (() => {
       _draft = _newDraft();
       render();
     });
-
     header.appendChild(title);
     header.appendChild(createBtn);
     wrap.appendChild(header);
 
-    const templates = DataLayer.getTemplates();
-    const list = document.createElement('div');
-    list.className = 'dash-template-list';
+    const defaultIds = new Set(DEFAULT_TEMPLATES.map(t => t.id));
+    const hiddenIds = new Set(DataLayer.getHiddenDefaultTemplates());
+    const allTemplates = DataLayer.getTemplates();
+    const defaultTemplates = allTemplates.filter(t => defaultIds.has(t.id));
+    const myTemplates = allTemplates.filter(t => !defaultIds.has(t.id));
 
-    if (!templates.length) {
+    // ── Default Templates ────────────────────────────────────────────────────
+    const defSection = document.createElement('div');
+    defSection.className = 'dash-template-section';
+
+    const defTitle = document.createElement('div');
+    defTitle.className = 'dash-template-section-title';
+    defTitle.textContent = 'Default Templates';
+    defSection.appendChild(defTitle);
+
+    const visibleDefaults = defaultTemplates.filter(t => !hiddenIds.has(t.id));
+    const hiddenDefaults = defaultTemplates.filter(t => hiddenIds.has(t.id));
+
+    if (visibleDefaults.length > 0) {
+      const defList = document.createElement('div');
+      defList.className = 'dash-template-list';
+      visibleDefaults.forEach(tmpl => defList.appendChild(_renderDefaultTemplateRow(tmpl)));
+      defSection.appendChild(defList);
+    } else if (hiddenDefaults.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'dash-empty';
-      empty.textContent = 'No templates yet.';
-      list.appendChild(empty);
+      empty.textContent = 'No default templates.';
+      defSection.appendChild(empty);
     } else {
-      templates.forEach(tmpl => {
-        list.appendChild(_renderTemplateRow(tmpl));
-      });
+      const empty = document.createElement('p');
+      empty.className = 'dash-empty';
+      empty.textContent = 'All default templates are hidden.';
+      defSection.appendChild(empty);
     }
 
-    wrap.appendChild(list);
+    if (hiddenDefaults.length > 0) {
+      let hiddenExpanded = false;
+      const showHiddenBtn = document.createElement('button');
+      showHiddenBtn.className = 'dash-show-hidden-btn';
+      showHiddenBtn.textContent = `Show ${hiddenDefaults.length} hidden`;
+
+      const hiddenList = document.createElement('div');
+      hiddenList.className = 'dash-template-list';
+      hiddenList.style.display = 'none';
+      hiddenList.style.marginTop = '6px';
+      hiddenDefaults.forEach(tmpl => hiddenList.appendChild(_renderHiddenDefaultTemplateRow(tmpl)));
+
+      showHiddenBtn.addEventListener('click', () => {
+        hiddenExpanded = !hiddenExpanded;
+        hiddenList.style.display = hiddenExpanded ? '' : 'none';
+        showHiddenBtn.textContent = hiddenExpanded
+          ? `Hide ${hiddenDefaults.length} hidden`
+          : `Show ${hiddenDefaults.length} hidden`;
+      });
+
+      defSection.appendChild(showHiddenBtn);
+      defSection.appendChild(hiddenList);
+    }
+
+    wrap.appendChild(defSection);
+
+    // ── My Templates ─────────────────────────────────────────────────────────
+    const mySection = document.createElement('div');
+    mySection.className = 'dash-template-section';
+
+    const myTitle = document.createElement('div');
+    myTitle.className = 'dash-template-section-title';
+    myTitle.textContent = 'My Templates';
+    mySection.appendChild(myTitle);
+
+    if (myTemplates.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'dash-empty';
+      empty.textContent = 'No custom templates yet. Use "Customise" on a default template, or create a new one above.';
+      mySection.appendChild(empty);
+    } else {
+      const myList = document.createElement('div');
+      myList.className = 'dash-template-list';
+      myTemplates.forEach(tmpl => myList.appendChild(_renderMyTemplateRow(tmpl)));
+      mySection.appendChild(myList);
+    }
+
+    wrap.appendChild(mySection);
     el.appendChild(wrap);
   }
 
-  function _renderTemplateRow(tmpl) {
+  // ── Template row hover ────────────────────────────────────────────────────
+
+  function _addTemplateRowHover(row, tmpl) {
+    row.addEventListener('mouseenter', () => {
+      clearTimeout(_hoverHideTimer);
+      _hoverHideTimer = null;
+      clearTimeout(_hoverShowTimer);
+      _hoverShowTimer = setTimeout(() => {
+        _previewTemplateId = tmpl.id;
+        _renderTemplatePreviewInPanel(tmpl);
+      }, 350);
+    });
+    row.addEventListener('mouseleave', () => {
+      clearTimeout(_hoverShowTimer);
+      _hoverShowTimer = null;
+      _hoverHideTimer = setTimeout(() => {
+        if (!_mouseInPanel && (_previewTaskId !== null || _previewTemplateId !== null)) {
+          _previewTaskId = null;
+          _previewTemplateId = null;
+          DetailPanel.hide();
+        }
+      }, 350);
+    });
+  }
+
+  function _renderDefaultTemplateRow(tmpl) {
+    const row = document.createElement('div');
+    row.className = 'dash-template-row';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'dash-template-name';
+    nameEl.textContent = tmpl.name || '(Unnamed)';
+
+    const psCount = (tmpl.projectSections || []).length;
+    const tsCount = (tmpl.taskSections || []).length;
+    const meta = document.createElement('span');
+    meta.className = 'dash-template-meta';
+    meta.textContent = `${psCount} project section${psCount !== 1 ? 's' : ''} · ${tsCount} task section${tsCount !== 1 ? 's' : ''}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'dash-template-actions';
+
+    const hideBtn = document.createElement('button');
+    hideBtn.className = 'dash-btn-secondary';
+    hideBtn.textContent = 'Hide';
+    hideBtn.addEventListener('click', () => { DataLayer.hideDefaultTemplate(tmpl.id); render(); });
+
+    const customBtn = document.createElement('button');
+    customBtn.className = 'dash-btn-secondary';
+    customBtn.textContent = 'Customise';
+    customBtn.addEventListener('click', () => { DataLayer.customiseDefaultTemplate(tmpl.id); render(); });
+
+    actions.appendChild(hideBtn);
+    actions.appendChild(customBtn);
+    row.appendChild(nameEl);
+    row.appendChild(meta);
+    row.appendChild(actions);
+
+    _addTemplateRowHover(row, tmpl);
+    return row;
+  }
+
+  function _renderHiddenDefaultTemplateRow(tmpl) {
+    const row = document.createElement('div');
+    row.className = 'dash-template-row dash-template-row--faded';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'dash-template-name';
+    nameEl.textContent = tmpl.name || '(Unnamed)';
+
+    const badge = document.createElement('span');
+    badge.className = 'dash-hidden-badge';
+    badge.textContent = 'Hidden';
+
+    const actions = document.createElement('div');
+    actions.className = 'dash-template-actions';
+
+    const restoreBtn = document.createElement('button');
+    restoreBtn.className = 'dash-btn-secondary';
+    restoreBtn.textContent = 'Restore';
+    restoreBtn.addEventListener('click', () => { DataLayer.restoreDefaultTemplate(tmpl.id); render(); });
+
+    actions.appendChild(restoreBtn);
+    row.appendChild(nameEl);
+    row.appendChild(badge);
+    row.appendChild(actions);
+
+    _addTemplateRowHover(row, tmpl);
+    return row;
+  }
+
+  function _renderMyTemplateRow(tmpl) {
     const row = document.createElement('div');
     row.className = 'dash-template-row';
 
@@ -134,16 +346,24 @@ const Dashboard = (() => {
       render();
     });
 
+    const dupBtn = document.createElement('button');
+    dupBtn.className = 'dash-btn-secondary';
+    dupBtn.textContent = 'Duplicate';
+    dupBtn.addEventListener('click', () => { DataLayer.duplicateTemplate(tmpl.id); render(); });
+
     const delBtn = document.createElement('button');
     delBtn.className = 'dash-btn-danger';
     delBtn.textContent = 'Delete';
     delBtn.addEventListener('click', () => _confirmDelete(tmpl.id));
 
     actions.appendChild(editBtn);
+    actions.appendChild(dupBtn);
     actions.appendChild(delBtn);
     row.appendChild(nameEl);
     row.appendChild(meta);
     row.appendChild(actions);
+
+    _addTemplateRowHover(row, tmpl);
     return row;
   }
 
@@ -165,6 +385,164 @@ const Dashboard = (() => {
     }
   }
 
+  // ── Template preview panel ────────────────────────────────────────────────
+
+  function _renderTemplatePreviewInPanel(template) {
+    const panel = document.getElementById('detail-panel');
+    const content = document.getElementById('detail-content');
+    const bottom = document.getElementById('detail-bottom');
+    if (!panel || !content) return;
+
+    content.innerHTML = '';
+    if (bottom) { bottom.innerHTML = ''; bottom.style.display = 'none'; }
+    panel.classList.remove('hidden');
+
+    const badge = document.createElement('div');
+    badge.className = 'tmpl-preview-badge';
+    badge.textContent = template.name || 'Template Preview';
+    content.appendChild(badge);
+
+    _buildTemplatePreviewContent(content, template);
+  }
+
+  function _buildTemplatePreviewContent(container, template) {
+    if (!template) return;
+
+    // Demo task title
+    const titleEl = document.createElement('div');
+    titleEl.className = 'editor-preview-task-title';
+    titleEl.textContent = 'Demo Task';
+    container.appendChild(titleEl);
+
+    // Sample date
+    const dates = document.createElement('div');
+    dates.className = 'detail-dates';
+    const pill = document.createElement('div');
+    pill.className = 'date-pill has-date';
+    const icon = document.createElement('span');
+    icon.className = 'pill-icon';
+    icon.textContent = '📅';
+    pill.appendChild(icon);
+    pill.appendChild(document.createTextNode(' 15 Aug 2026'));
+    dates.appendChild(pill);
+    container.appendChild(dates);
+
+    // Task checkpoints
+    const tf = template.taskFeatures;
+    if (tf && tf.reminders && tf.reminders.enabled && (tf.reminders.items || []).length > 0) {
+      const checklist = document.createElement('div');
+      checklist.className = 'detail-checklist';
+      (tf.reminders.items || []).forEach(item => {
+        const ci = document.createElement('div');
+        ci.className = 'checklist-item';
+        const chk = document.createElement('div');
+        chk.className = 'checklist-checkbox';
+        const lbl = document.createElement('span');
+        lbl.className = 'checklist-label';
+        lbl.textContent = item.name || 'Checkpoint';
+        ci.appendChild(chk);
+        ci.appendChild(lbl);
+        checklist.appendChild(ci);
+      });
+      container.appendChild(checklist);
+    }
+
+    // Task reminder field
+    if (tf && tf.taskReminders && tf.taskReminders.enabled) {
+      const rem = document.createElement('div');
+      rem.className = 'detail-task-reminder';
+      const ph = document.createElement('span');
+      ph.className = 'detail-reminder-placeholder';
+      ph.textContent = '+ add reminder';
+      rem.appendChild(ph);
+      container.appendChild(rem);
+    }
+
+    // Task sections
+    (template.taskSections || []).forEach((ts, tsIdx) => {
+      const group = document.createElement('div');
+      group.className = 'detail-section-group';
+      if (tsIdx > 0) group.classList.add('collapsed');
+
+      const heading = document.createElement('div');
+      heading.className = 'detail-section-heading';
+      const chev = document.createElement('span');
+      chev.className = 'section-chevron' + (tsIdx === 0 ? ' open' : '');
+      chev.textContent = '▶';
+      const headTitle = document.createElement('span');
+      headTitle.textContent = ' ' + (ts.name || 'Section');
+      heading.appendChild(chev);
+      heading.appendChild(headTitle);
+      heading.addEventListener('click', () => {
+        const collapsed = group.classList.toggle('collapsed');
+        chev.classList.toggle('open', !collapsed);
+      });
+      group.appendChild(heading);
+
+      (ts.modules || []).forEach(tm => {
+        if (tm.name) {
+          const modGroup = document.createElement('div');
+          modGroup.className = 'detail-module-group' + (tm.defaultOpen ? '' : ' collapsed');
+          const modHd = document.createElement('div');
+          modHd.className = 'detail-module-heading';
+          const modChev = document.createElement('span');
+          modChev.className = 'section-chevron' + (tm.defaultOpen ? ' open' : '');
+          modChev.textContent = '▶';
+          const modTitle = document.createElement('span');
+          modTitle.className = 'detail-module-heading-title';
+          modTitle.textContent = ' ' + tm.name;
+          modHd.appendChild(modChev);
+          modHd.appendChild(modTitle);
+          modHd.addEventListener('click', () => {
+            const collapsed = modGroup.classList.toggle('collapsed');
+            modChev.classList.toggle('open', !collapsed);
+          });
+          modGroup.appendChild(modHd);
+          (tm.fields || []).forEach(field => modGroup.appendChild(_buildPreviewField(field)));
+          group.appendChild(modGroup);
+        } else {
+          (tm.fields || []).forEach(field => group.appendChild(_buildPreviewField(field)));
+        }
+      });
+
+      container.appendChild(group);
+    });
+  }
+
+  function _buildPreviewField(field) {
+    const row = document.createElement('div');
+    row.className = 'detail-field';
+
+    const label = document.createElement('div');
+    label.className = 'detail-field-label';
+    label.textContent = field.hideLabel ? '' : (field.name || '');
+    row.appendChild(label);
+
+    const value = document.createElement('div');
+    value.className = 'detail-field-value readonly';
+    const text = document.createElement('span');
+    text.className = 'detail-field-text placeholder';
+    text.textContent = _placeholderForType(field.type, field);
+    value.appendChild(text);
+    row.appendChild(value);
+    return row;
+  }
+
+  function _placeholderForType(type, field) {
+    switch (type) {
+      case 'link': return '+ add link';
+      case 'toggle': {
+        const opts = field && field.toggleOptions;
+        return (opts && opts.length) ? opts[0].label : '—';
+      }
+      case 'dropdown': {
+        const opts = field && field.dropdownOptions;
+        return (opts && opts.length) ? opts[0].label : '—';
+      }
+      default: return '—';
+    }
+  }
+
   // ── Editor ────────────────────────────────────────────────────────────────
 
   function _newDraft() {
@@ -172,7 +550,7 @@ const Dashboard = (() => {
       id: Utils.generateId(),
       name: '',
       projectSections: [],
-      taskFeatures: { reminders: { enabled: false, items: [] } },
+      taskFeatures: { reminders: { enabled: false, items: [] }, taskReminders: { enabled: false } },
       taskSections: [
         {
           id: Utils.generateId(),
@@ -186,8 +564,30 @@ const Dashboard = (() => {
   }
 
   function _renderEditor(el) {
+    // Two-column layout: editor on left, live preview on right
+    const layout = document.createElement('div');
+    layout.className = 'editor-layout';
+    el.appendChild(layout);
+
     const wrap = document.createElement('div');
-    wrap.className = 'dash-wrap';
+    wrap.className = 'editor-col';
+    layout.appendChild(wrap);
+
+    const previewCol = document.createElement('div');
+    previewCol.className = 'editor-preview-col';
+    layout.appendChild(previewCol);
+    _previewEl = previewCol;
+
+    _refreshEditorPreview = function() {
+      if (!_previewEl) return;
+      _previewEl.innerHTML = '';
+      const heading = document.createElement('div');
+      heading.className = 'editor-preview-heading';
+      heading.textContent = _draft.name ? `"${_draft.name}"` : 'Template preview';
+      _previewEl.appendChild(heading);
+      _buildTemplatePreviewContent(_previewEl, _draft);
+    };
+    _refreshEditorPreview();
 
     // Back link
     const backBtn = document.createElement('button');
@@ -214,7 +614,10 @@ const Dashboard = (() => {
     nameInput.type = 'text';
     nameInput.value = _draft.name;
     nameInput.placeholder = 'e.g. Band Booking, Corporate Event…';
-    nameInput.addEventListener('input', () => { _draft.name = nameInput.value; });
+    nameInput.addEventListener('input', () => {
+      _draft.name = nameInput.value;
+      if (_refreshEditorPreview) _refreshEditorPreview();
+    });
     nameRow.appendChild(nameLabel);
     nameRow.appendChild(nameInput);
     wrap.appendChild(nameRow);
@@ -250,6 +653,7 @@ const Dashboard = (() => {
         }, 10);
       }, 'editor-add-btn--sm');
       psList.appendChild(psAddBtn);
+      if (_refreshEditorPreview) _refreshEditorPreview();
     }
     rerenderPs();
 
@@ -273,6 +677,7 @@ const Dashboard = (() => {
     function rerenderTF() {
       tfContainer.innerHTML = '';
       tfContainer.appendChild(_buildTaskFeatures(rerenderTF));
+      if (_refreshEditorPreview) _refreshEditorPreview();
     }
     rerenderTF();
 
@@ -289,7 +694,6 @@ const Dashboard = (() => {
     tsHint.textContent = 'Fields shown inside each task\'s detail panel (TS → TM → TL structure).';
     wrap.appendChild(tsHint);
 
-    // TS list container
     const tsList = document.createElement('div');
     tsList.className = 'editor-ts-list';
     wrap.appendChild(tsList);
@@ -308,6 +712,7 @@ const Dashboard = (() => {
         rerenderTs();
       });
       tsList.appendChild(addBtn);
+      if (_refreshEditorPreview) _refreshEditorPreview();
     }
     rerenderTs();
 
@@ -329,7 +734,6 @@ const Dashboard = (() => {
     actions.appendChild(cancelBtn);
     wrap.appendChild(actions);
 
-    el.appendChild(wrap);
     // Focus template name if empty (new template)
     if (!_draft.name) setTimeout(() => nameInput.focus(), 0);
   }
@@ -399,7 +803,10 @@ const Dashboard = (() => {
     nameInput.type = 'text';
     nameInput.value = ts.name;
     nameInput.placeholder = 'Section name (e.g. Overview, Advance Information)';
-    nameInput.addEventListener('input', () => { ts.name = nameInput.value; });
+    nameInput.addEventListener('input', () => {
+      ts.name = nameInput.value;
+      if (_refreshEditorPreview) _refreshEditorPreview();
+    });
 
     const ctrls = _controls(
       tsIdx,
@@ -429,6 +836,7 @@ const Dashboard = (() => {
         rerenderTm();
       }, 'editor-add-btn--sm');
       tmList.appendChild(addBtn);
+      if (_refreshEditorPreview) _refreshEditorPreview();
     }
     rerenderTm();
 
@@ -449,7 +857,10 @@ const Dashboard = (() => {
     nameInput.type = 'text';
     nameInput.value = tm.name;
     nameInput.placeholder = 'Module name — leave blank for flat (no heading)';
-    nameInput.addEventListener('input', () => { tm.name = nameInput.value; });
+    nameInput.addEventListener('input', () => {
+      tm.name = nameInput.value;
+      if (_refreshEditorPreview) _refreshEditorPreview();
+    });
 
     const ctrls = _controls(
       tmIdx,
@@ -479,6 +890,7 @@ const Dashboard = (() => {
         rerenderTl();
       }, 'editor-add-btn--xs');
       tlList.appendChild(addBtn);
+      if (_refreshEditorPreview) _refreshEditorPreview();
     }
     rerenderTl();
 
@@ -499,7 +911,10 @@ const Dashboard = (() => {
     nameInput.type = 'text';
     nameInput.value = field.name;
     nameInput.placeholder = 'Field label (e.g. CAPACITY)';
-    nameInput.addEventListener('input', () => { field.name = nameInput.value; });
+    nameInput.addEventListener('input', () => {
+      field.name = nameInput.value;
+      if (_refreshEditorPreview) _refreshEditorPreview();
+    });
 
     const typeSelect = document.createElement('select');
     typeSelect.className = 'editor-tl-type';
@@ -555,8 +970,8 @@ const Dashboard = (() => {
       const optRow = document.createElement('div');
       optRow.className = 'editor-opt-row';
 
-      const valIn = _miniInput(opt.value, 'value (stored)', v => { opt.value = v; });
-      const lblIn = _miniInput(opt.label, 'label (displayed)', v => { opt.label = v; });
+      const valIn = _miniInput(opt.value, 'value (stored)', v => { opt.value = v; if (_refreshEditorPreview) _refreshEditorPreview(); });
+      const lblIn = _miniInput(opt.label, 'label (displayed)', v => { opt.label = v; if (_refreshEditorPreview) _refreshEditorPreview(); });
       const rm = _removeBtn(() => { field.toggleOptions.splice(i, 1); rerender(); });
 
       optRow.appendChild(valIn);
@@ -588,8 +1003,8 @@ const Dashboard = (() => {
     field.dropdownOptions.forEach((opt, i) => {
       const optRow = document.createElement('div');
       optRow.className = 'editor-opt-row';
-      const valIn  = _miniInput(opt.value, 'value (stored)', v => { opt.value = v; });
-      const lblIn  = _miniInput(opt.label, 'label (displayed)', v => { opt.label = v; });
+      const valIn  = _miniInput(opt.value, 'value (stored)', v => { opt.value = v; if (_refreshEditorPreview) _refreshEditorPreview(); });
+      const lblIn  = _miniInput(opt.label, 'label (displayed)', v => { opt.label = v; if (_refreshEditorPreview) _refreshEditorPreview(); });
       const rm     = _removeBtn(() => { field.dropdownOptions.splice(i, 1); rerender(); });
       optRow.appendChild(valIn);
       optRow.appendChild(lblIn);
@@ -729,7 +1144,10 @@ const Dashboard = (() => {
           nameInput.type = 'text';
           nameInput.value = item.name;
           nameInput.placeholder = 'Reminder name (e.g. Press Kit)';
-          nameInput.addEventListener('input', () => { item.name = nameInput.value; });
+          nameInput.addEventListener('input', () => {
+            item.name = nameInput.value;
+            if (_refreshEditorPreview) _refreshEditorPreview();
+          });
 
           const ctrls = _controls(
             idx, rem.items.length,
@@ -753,6 +1171,7 @@ const Dashboard = (() => {
           }, 10);
         }, 'editor-add-btn--sm');
         itemsList.appendChild(addBtn);
+        if (_refreshEditorPreview) _refreshEditorPreview();
       }
 
       rerenderItems();
@@ -823,6 +1242,7 @@ const Dashboard = (() => {
   // ── To Do list ────────────────────────────────────────────────────────────
 
   function _renderTodo(el) {
+    _setupPanelHoverListeners();
     const wrap = document.createElement('div');
     wrap.className = 'dash-wrap';
 
@@ -1004,6 +1424,28 @@ const Dashboard = (() => {
       item.addEventListener('click', (e) => {
         if (e.target.closest('.todo-checkbox')) return;
         _navigate(task.id, project.id);
+      });
+
+      // Hover preview
+      item.addEventListener('mouseenter', () => {
+        clearTimeout(_hoverHideTimer);
+        _hoverHideTimer = null;
+        clearTimeout(_hoverShowTimer);
+        _hoverShowTimer = setTimeout(() => {
+          _previewTaskId = task.id;
+          DetailPanel.render(task.id);
+        }, 350);
+      });
+
+      item.addEventListener('mouseleave', () => {
+        clearTimeout(_hoverShowTimer);
+        _hoverShowTimer = null;
+        _hoverHideTimer = setTimeout(() => {
+          if (!_mouseInPanel && _previewTaskId !== null) {
+            _previewTaskId = null;
+            DetailPanel.hide();
+          }
+        }, 350);
       });
 
       return item;
