@@ -681,8 +681,13 @@ const Dashboard = (() => {
   function _buildTaskFeatures(rerender) {
     if (!_draft.taskFeatures) _draft.taskFeatures = {};
     if (!_draft.taskFeatures.reminders) _draft.taskFeatures.reminders = { enabled: false, items: [] };
+    if (!_draft.taskFeatures.taskReminders) _draft.taskFeatures.taskReminders = { enabled: false };
     const rem = _draft.taskFeatures.reminders;
+    const tr = _draft.taskFeatures.taskReminders;
 
+    const container = document.createElement('div');
+
+    // ── Task Checkpoints ─────────────────────────────────────────────────────
     const block = document.createElement('div');
     block.className = 'editor-tf-feature';
 
@@ -698,7 +703,7 @@ const Dashboard = (() => {
     const lbl = document.createElement('label');
     lbl.htmlFor = 'tf-reminders-toggle';
     lbl.className = 'editor-tf-label';
-    lbl.textContent = 'Task Reminders';
+    lbl.textContent = 'Task Checkpoints';
 
     const desc = document.createElement('span');
     desc.className = 'editor-tf-desc';
@@ -754,7 +759,38 @@ const Dashboard = (() => {
       block.appendChild(itemsList);
     }
 
-    return block;
+    container.appendChild(block);
+
+    // ── Task Reminders ───────────────────────────────────────────────────────
+    const trBlock = document.createElement('div');
+    trBlock.className = 'editor-tf-feature';
+    trBlock.style.marginTop = '8px';
+
+    const trToggleRow = document.createElement('div');
+    trToggleRow.className = 'editor-tf-toggle-row';
+
+    const trChk = document.createElement('input');
+    trChk.type = 'checkbox';
+    trChk.id = 'tf-task-reminders-toggle';
+    trChk.checked = !!tr.enabled;
+    trChk.addEventListener('change', () => { tr.enabled = trChk.checked; rerender(); });
+
+    const trLbl = document.createElement('label');
+    trLbl.htmlFor = 'tf-task-reminders-toggle';
+    trLbl.className = 'editor-tf-label';
+    trLbl.textContent = 'Task Reminders';
+
+    const trDesc = document.createElement('span');
+    trDesc.className = 'editor-tf-desc';
+    trDesc.textContent = 'Text input field for sending reminders to the To Do dashboard';
+
+    trToggleRow.appendChild(trChk);
+    trToggleRow.appendChild(trLbl);
+    trToggleRow.appendChild(trDesc);
+    trBlock.appendChild(trToggleRow);
+    container.appendChild(trBlock);
+
+    return container;
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -834,13 +870,21 @@ const Dashboard = (() => {
     function _toggleDone(noteId, taskId, currentDone) {
       const t = DataLayer.getTask(taskId);
       if (!t) return;
+      const changes = {};
       if (t.listNotes) {
-        const notes = t.listNotes.map(n => n.id === noteId ? { ...n, done: !currentDone } : n);
-        DataLayer.updateTask(taskId, { listNotes: notes });
+        changes.listNotes = t.listNotes.map(n => n.id === noteId ? { ...n, done: !currentDone } : n);
+        if (!currentDone) {
+          const note = t.listNotes.find(n => n.id === noteId);
+          if (note && note.source === 'column' && t.lastReminderByColumn && t.lastReminderByColumn.noteId === noteId) {
+            changes.lastReminderByColumn = null;
+          } else if (note && note.source === 'panel' && t.lastReminderByPanel && t.lastReminderByPanel.noteId === noteId) {
+            changes.lastReminderByPanel = null;
+          }
+        }
       } else {
-        // Legacy single-note fallback
-        DataLayer.updateTask(taskId, { noteDone: !currentDone });
+        changes.noteDone = !currentDone;
       }
+      DataLayer.updateTask(taskId, changes);
       _clearTodoTimer();
       render();
     }
@@ -946,6 +990,13 @@ const Dashboard = (() => {
       age.dataset.ts = note.timestamp || '';
       age.textContent = note.timestamp ? _humanAge(note.timestamp) : '';
       body.appendChild(age);
+
+      if (note.source) {
+        const src = document.createElement('span');
+        src.className = 'todo-source';
+        src.textContent = note.source === 'panel' ? 'via Task panel' : 'via Task Reminder column';
+        body.appendChild(src);
+      }
 
       item.appendChild(body);
 

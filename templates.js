@@ -39,7 +39,8 @@ const BAND_BOOKING_TEMPLATE = {
         { id: 'tr_bk_techrider', name: 'Tech Rider' },
         { id: 'tr_bk_advance',   name: 'Advance' }
       ]
-    }
+    },
+    taskReminders: { enabled: true }
   },
   taskSections: [
 

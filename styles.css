@@ -2334,3 +2334,73 @@ a:hover { text-decoration: underline; }
   color: var(--text-placeholder);
   margin-top: 1px;
 }
+
+.todo-source {
+  font-size: 10px;
+  color: var(--text-placeholder);
+  font-style: italic;
+  margin-top: 1px;
+}
+
+/* ── Task Reminder — sent (greyed preview) ────────────────────────────────── */
+
+.task-note-sent {
+  color: var(--text-placeholder);
+  font-style: italic;
+  font-size: 12px;
+  cursor: text;
+}
+
+/* ── Comment count link (replaces bubble history in task pane) ────────────── */
+
+.comment-count-link {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-blue);
+  background: none;
+  border: none;
+  padding: 0 0 8px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.comment-count-link:hover { opacity: 0.75; }
+
+/* ── Task Reminder field in detail panel ──────────────────────────────────── */
+
+.detail-task-reminder {
+  margin: 0 16px 8px;
+  padding: 7px 10px;
+  background: var(--bg-hover);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  cursor: text;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+}
+
+.detail-reminder-placeholder {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  cursor: text;
+}
+
+.detail-reminder-sent {
+  font-size: 12px;
+  color: var(--text-placeholder);
+  font-style: italic;
+  cursor: text;
+}
+
+.detail-reminder-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  padding: 0;
+}

@@ -62,7 +62,7 @@ const ListView = (() => {
     const header = document.createElement('div');
     header.className = 'list-col-header';
 
-    const colLabels = { name: 'Task name', date: 'Date', notes: 'Notes' };
+    const colLabels = { name: 'Task name', date: 'Date', notes: 'Task Reminder' };
 
     colOrder.forEach(key => {
       const cell = document.createElement('div');
@@ -384,9 +384,16 @@ const ListView = (() => {
 
     function refreshDisplay() {
       col.innerHTML = '';
+      const t = DataLayer.getTask(task.id);
+      const last = t && t.lastReminderByColumn;
       const span = document.createElement('span');
-      span.className = 'task-note-text placeholder';
-      span.textContent = 'Add a note…';
+      if (last) {
+        span.className = 'task-note-text task-note-sent';
+        span.textContent = last.text;
+      } else {
+        span.className = 'task-note-text placeholder';
+        span.textContent = 'Add a reminder…';
+      }
       col.appendChild(span);
     }
 
@@ -399,7 +406,7 @@ const ListView = (() => {
       input.type = 'text';
       input.className = 'task-notes-input';
       input.value = '';
-      input.placeholder = 'Add a note…';
+      input.placeholder = 'Add a reminder…';
       let committed = false;
 
       function commitNote() {
@@ -409,8 +416,9 @@ const ListView = (() => {
         if (text) {
           const t = DataLayer.getTask(task.id);
           const notes = t && t.listNotes ? [...t.listNotes] : [];
-          notes.push({ id: Utils.generateId(), text, timestamp: new Date().toISOString(), done: false });
-          DataLayer.updateTask(task.id, { listNotes: notes });
+          const noteId = Utils.generateId();
+          notes.push({ id: noteId, text, timestamp: new Date().toISOString(), done: false, source: 'column' });
+          DataLayer.updateTask(task.id, { listNotes: notes, lastReminderByColumn: { noteId, text } });
           UIHelpers.showSaved();
         }
         refreshDisplay();

@@ -87,6 +87,9 @@ const DetailPanel = (() => {
     _renderDates(content, task);
     _renderSectionSelector(content, task, section, sections);
     _renderChecklist(content, task, template);
+    if (template && template.taskFeatures && template.taskFeatures.taskReminders && template.taskFeatures.taskReminders.enabled) {
+      _renderTaskReminderField(content, task);
+    }
 
     if (task.blank) {
       const blankCtx = { template: null, taskId: task.id, onModified: () => _syncPanel(task.id) };
@@ -1933,45 +1936,84 @@ const DetailPanel = (() => {
     section.className = 'comment-section';
     container.appendChild(section);
 
-    const hdrWrap = document.createElement('div');
-    hdrWrap.className = 'comment-section-header';
-    const hdrLabel = document.createElement('span');
-    hdrLabel.className = 'comment-section-title';
-    hdrLabel.textContent = 'Comments';
-    hdrWrap.appendChild(hdrLabel);
-    const loadAllLink = document.createElement('button');
-    loadAllLink.className = 'comment-load-all-link';
-    loadAllLink.style.display = 'none';
-    loadAllLink.addEventListener('click', () => _openCommentPane(task));
-    hdrWrap.appendChild(loadAllLink);
-    section.appendChild(hdrWrap);
+    const countLink = document.createElement('button');
+    countLink.className = 'comment-count-link';
+    countLink.addEventListener('click', () => _openCommentPane(task));
+    section.appendChild(countLink);
 
-    const thread = document.createElement('div');
-    thread.className = 'comment-thread-fixed';
-    section.appendChild(thread);
-
-    function renderInline() {
-      thread.innerHTML = '';
+    function updateCount() {
       const t = DataLayer.getTask(task.id);
-      const comments = t ? (t.comments || []) : [];
-      if (comments.length > 0) {
-        loadAllLink.textContent = '· Load all ' + comments.length;
-        loadAllLink.style.display = '';
-      } else {
-        loadAllLink.style.display = 'none';
-      }
-      comments.forEach(c => thread.appendChild(_makeCommentBubble(c)));
-      thread.scrollTop = thread.scrollHeight;
+      const n = t ? (t.comments || []).length : 0;
+      countLink.textContent = n === 0 ? 'No comments yet' : n === 1 ? '1 Comment' : `${n} Comments`;
     }
 
-    _refreshInlineComments = renderInline;
+    _refreshInlineComments = updateCount;
 
     section.appendChild(_makeCommentInputArea(task.id, () => {
-      renderInline();
+      updateCount();
       if (_refreshPaneComments) _refreshPaneComments();
     }));
 
-    renderInline();
+    updateCount();
+  }
+
+  function _renderTaskReminderField(container, task) {
+    const wrap = document.createElement('div');
+    wrap.className = 'detail-task-reminder';
+
+    function refreshDisplay() {
+      wrap.innerHTML = '';
+      const t = DataLayer.getTask(task.id);
+      const last = t && t.lastReminderByPanel;
+      if (last) {
+        const sent = document.createElement('span');
+        sent.className = 'detail-reminder-sent';
+        sent.textContent = last.text;
+        wrap.appendChild(sent);
+      } else {
+        const ph = document.createElement('span');
+        ph.className = 'detail-reminder-placeholder';
+        ph.textContent = '+ add reminder';
+        wrap.appendChild(ph);
+      }
+      wrap.addEventListener('click', startEdit, { once: true });
+    }
+
+    function startEdit() {
+      if (wrap.querySelector('input')) return;
+      wrap.innerHTML = '';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'detail-reminder-input';
+      input.value = '';
+      input.placeholder = 'Add a reminder…';
+      let committed = false;
+
+      function commitNote() {
+        if (committed) return;
+        committed = true;
+        const text = input.value.trim();
+        if (text) {
+          const t = DataLayer.getTask(task.id);
+          const notes = t && t.listNotes ? [...t.listNotes] : [];
+          const noteId = Utils.generateId();
+          notes.push({ id: noteId, text, timestamp: new Date().toISOString(), done: false, source: 'panel' });
+          DataLayer.updateTask(task.id, { listNotes: notes, lastReminderByPanel: { noteId, text } });
+        }
+        refreshDisplay();
+      }
+
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); commitNote(); }
+        if (ev.key === 'Escape') { committed = true; refreshDisplay(); }
+      });
+      input.addEventListener('blur', () => setTimeout(commitNote, 100));
+      wrap.appendChild(input);
+      setTimeout(() => input.focus(), 0);
+    }
+
+    refreshDisplay();
+    container.appendChild(wrap);
   }
 
   function _openCommentPane(task) {
