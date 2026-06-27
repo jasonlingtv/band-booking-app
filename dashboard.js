@@ -447,13 +447,37 @@ const Dashboard = (() => {
       container.appendChild(rem);
     }
 
+    // Project sections preview
+    const psSelector = document.createElement('div');
+    psSelector.className = 'detail-section-selector';
+    psSelector.style.pointerEvents = 'none';
+    const psLabelEl = document.createElement('label');
+    psLabelEl.textContent = 'Section:';
+    psSelector.appendChild(psLabelEl);
+    const psItems = (template.projectSections || []).filter(ps => ps.name);
+    if (psItems.length) {
+      psItems.forEach((ps, i) => {
+        const pill = document.createElement('button');
+        pill.className = 'section-pill' + (i === 0 ? ' active color-blue' : '');
+        pill.textContent = ps.name;
+        psSelector.appendChild(pill);
+      });
+    } else {
+      ['e.g. Planning', 'e.g. Confirmed'].forEach((text, i) => {
+        const pill = document.createElement('button');
+        pill.className = 'section-pill' + (i === 0 ? ' active color-blue' : '');
+        pill.style.opacity = '0.4';
+        pill.textContent = text;
+        psSelector.appendChild(pill);
+      });
+    }
+    container.appendChild(psSelector);
+
     // Task sections
     (template.taskSections || []).forEach((ts, tsIdx) => {
       const group = document.createElement('div');
       group.className = 'detail-section-group';
       if (tsIdx > 0) group.classList.add('collapsed');
-
-      group.appendChild(_termLabel('Task Section' + (ts.name ? ` (e.g. ${ts.name})` : '')));
 
       const heading = document.createElement('div');
       heading.className = 'detail-section-heading';
@@ -474,7 +498,6 @@ const Dashboard = (() => {
         if (tm.name) {
           const modGroup = document.createElement('div');
           modGroup.className = 'detail-module-group' + (tm.defaultOpen ? '' : ' collapsed');
-          modGroup.appendChild(_termLabel('Task Module' + (tm.name ? ` (e.g. ${tm.name})` : '')));
           const modHd = document.createElement('div');
           modHd.className = 'detail-module-heading';
           const modChev = document.createElement('span');
@@ -505,10 +528,6 @@ const Dashboard = (() => {
     const row = document.createElement('div');
     row.className = 'detail-field';
 
-    if (!field.hideLabel && field.name) {
-      row.appendChild(_termLabel(`Task Label (e.g. ${field.name})`));
-    }
-
     const label = document.createElement('div');
     label.className = 'detail-field-label';
     label.textContent = field.hideLabel ? '' : (field.name || '');
@@ -516,24 +535,55 @@ const Dashboard = (() => {
 
     const value = document.createElement('div');
     value.className = 'detail-field-value readonly';
-    const text = document.createElement('span');
-    text.className = 'detail-field-text placeholder';
-    text.textContent = _placeholderForType(field.type, field);
-    value.appendChild(text);
+
+    if (field.type === 'toggle') {
+      const opts = (field.toggleOptions && field.toggleOptions.length)
+        ? field.toggleOptions
+        : [{ label: 'No' }, { label: 'Yes' }];
+      const toggleEl = document.createElement('div');
+      toggleEl.className = 'detail-toggle';
+      toggleEl.style.pointerEvents = 'none';
+      opts.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'detail-toggle-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = opt.label;
+        toggleEl.appendChild(btn);
+      });
+      value.appendChild(toggleEl);
+    } else {
+      const text = document.createElement('span');
+      text.className = 'detail-field-text placeholder';
+      const placeholder = _placeholderForType(field.type, field);
+      if (field.type === 'textarea') {
+        placeholder.split('\n').forEach((line, i) => {
+          if (i > 0) text.appendChild(document.createElement('br'));
+          text.appendChild(document.createTextNode(line));
+        });
+      } else {
+        text.textContent = placeholder;
+      }
+      value.appendChild(text);
+    }
+
     row.appendChild(value);
     return row;
   }
 
   function _placeholderForType(type, field) {
     switch (type) {
-      case 'link': return '+ add link';
-      case 'toggle': {
-        const opts = field && field.toggleOptions;
-        return (opts && opts.length) ? opts[0].label : '—';
-      }
+      case 'text':           return 'e.g. Badehaus, Berlin';
+      case 'textarea':       return 'e.g. Fee: €2,500\n+ Travel\n+ Hotel';
+      case 'link':           return '+ add link';
+      case 'date':           return 'e.g. 28 Jun 2026';
+      case 'time-select':    return 'e.g. 20:00';
+      case 'time-select-na': return 'e.g. 20:00';
+      case 'auto':           return 'Auto-filled from task';
+      case 'catering-select':    return 'e.g. Dinner for 4';
+      case 'show-length-select': return 'e.g. 90 min';
+      case 'show-time':          return 'e.g. 20:00';
       case 'dropdown': {
         const opts = field && field.dropdownOptions;
-        return (opts && opts.length) ? opts[0].label : '—';
+        return (opts && opts.length) ? `e.g. ${opts[0].label}` : 'e.g. Option 1';
       }
       default: return '—';
     }
@@ -550,7 +600,7 @@ const Dashboard = (() => {
       taskSections: [
         {
           id: Utils.generateId(),
-          name: 'Overview',
+          name: '',
           modules: [
             { id: Utils.generateId(), name: '', defaultOpen: true, fields: [] }
           ]
@@ -675,7 +725,7 @@ const Dashboard = (() => {
 
     const tsHint = document.createElement('p');
     tsHint.className = 'editor-section-hint';
-    tsHint.textContent = 'Fields shown inside each task\'s detail panel (TS → TM → TL structure).';
+    tsHint.textContent = 'Fields shown inside each task\'s detail panel. Each Task Section groups Task Modules, which contain Task Labels (the individual fields).';
     wrap.appendChild(tsHint);
 
     const tsList = document.createElement('div');
@@ -690,7 +740,7 @@ const Dashboard = (() => {
       const addBtn = _addBtn('+ Add Task Section', () => {
         _draft.taskSections.push({
           id: Utils.generateId(),
-          name: 'New Section',
+          name: '',
           modules: [{ id: Utils.generateId(), name: '', defaultOpen: true, fields: [] }]
         });
         rerenderTs();
@@ -786,7 +836,7 @@ const Dashboard = (() => {
     nameInput.className = 'editor-ts-name';
     nameInput.type = 'text';
     nameInput.value = ts.name;
-    nameInput.placeholder = 'Section name (e.g. Overview, Advance Information)';
+    nameInput.placeholder = 'Task Section name';
     nameInput.addEventListener('input', () => {
       ts.name = nameInput.value;
       if (_refreshEditorPreview) _refreshEditorPreview();
@@ -815,7 +865,7 @@ const Dashboard = (() => {
       ts.modules.forEach((tm, tmIdx) => {
         tmList.appendChild(_buildTM(tm, tmIdx, ts, rerenderTm));
       });
-      const addBtn = _addBtn('+ Add Module', () => {
+      const addBtn = _addBtn('+ Add Task Module', () => {
         ts.modules.push({ id: Utils.generateId(), name: '', defaultOpen: false, fields: [] });
         rerenderTm();
       }, 'editor-add-btn--sm');
@@ -840,7 +890,7 @@ const Dashboard = (() => {
     nameInput.className = 'editor-tm-name';
     nameInput.type = 'text';
     nameInput.value = tm.name;
-    nameInput.placeholder = 'Module name — leave blank for flat (no heading)';
+    nameInput.placeholder = 'Task Module name — leave blank for flat (no heading)';
     nameInput.addEventListener('input', () => {
       tm.name = nameInput.value;
       if (_refreshEditorPreview) _refreshEditorPreview();
@@ -869,7 +919,7 @@ const Dashboard = (() => {
       tm.fields.forEach((field, tlIdx) => {
         tlList.appendChild(_buildTL(field, tlIdx, tm, rerenderTl));
       });
-      const addBtn = _addBtn('+ Add Field', () => {
+      const addBtn = _addBtn('+ Add Task Label', () => {
         tm.fields.push({ id: Utils.generateId(), name: '', type: 'text' });
         rerenderTl();
       }, 'editor-add-btn--xs');
@@ -894,7 +944,7 @@ const Dashboard = (() => {
     nameInput.className = 'editor-tl-name';
     nameInput.type = 'text';
     nameInput.value = field.name;
-    nameInput.placeholder = 'Field label (e.g. CAPACITY)';
+    nameInput.placeholder = 'Task Label name (e.g. CAPACITY)';
     nameInput.addEventListener('input', () => {
       field.name = nameInput.value;
       if (_refreshEditorPreview) _refreshEditorPreview();
