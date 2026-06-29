@@ -3021,6 +3021,58 @@ a:hover { text-decoration: underline; }
   overflow: hidden;
 }
 
+/* ── News: empty state ───────────────────────────────────────────────────── */
+
+.news-empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 48px 24px 32px;
+  text-align: center;
+}
+.news-empty-icon {
+  color: var(--text-secondary);
+  opacity: 0.45;
+  margin-bottom: 16px;
+}
+.news-empty-heading {
+  font-size: 18px; font-weight: 600; color: var(--text);
+  margin: 0 0 8px;
+}
+.news-empty-sub {
+  font-size: 14px; color: var(--text-secondary); margin: 0 0 24px;
+  max-width: 380px; line-height: 1.5;
+}
+.news-empty-cta { font-size: 14px; padding: 9px 20px; }
+
+.news-suggested-label {
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+.news-suggested-grid { margin-bottom: 32px; }
+.news-suggested-card { opacity: 0.72; }
+.news-suggested-card:hover { opacity: 1; }
+
+/* ── News: Feedly search ─────────────────────────────────────────────────── */
+
+.news-search-wrap {
+  position: relative;
+  flex: 1;
+}
+.news-search-clear {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--text-secondary); font-size: 13px; padding: 2px 4px;
+  line-height: 1;
+}
+.news-search-clear:hover { color: var(--text); }
+.news-feedly-input { padding-right: 32px; }
+
+.news-search-results { margin-bottom: 8px; }
+.news-search-loading {
+  font-size: 13px; color: var(--text-secondary);
+  padding: 16px 0;
+}
+
 /* ── Document / PDF inline preview modal ─────────────────────────────────── */
 
 .doc-preview-overlay {
