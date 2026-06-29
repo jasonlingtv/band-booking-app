@@ -148,7 +148,8 @@ const NewsView = (() => {
 
     const icon = document.createElement('div');
     icon.className = 'news-empty-icon';
-    icon.innerHTML = '<svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true"><rect x="6" y="8" width="40" height="36" rx="5" stroke="currentColor" stroke-width="2.5"/><line x1="15" y1="20" x2="37" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="27" x2="37" y2="27" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="34" x2="27" y2="34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    // Newspaper icon with RSS signal waves
+    icon.innerHTML = '<svg width="72" height="72" viewBox="0 0 72 72" fill="none" aria-hidden="true"><rect x="8" y="12" width="48" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="16" y="22" width="32" height="10" rx="2" fill="currentColor" opacity="0.15"/><line x1="16" y1="22" x2="48" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="32" x2="48" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="40" x2="40" y2="40" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="16" y1="48" x2="34" y2="48" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="56" cy="16" r="3" fill="currentColor" opacity="0.5"/><path d="M56 8 a8 8 0 0 1 0 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.4"/><path d="M56 4 a12 12 0 0 1 0 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.25"/></svg>';
     state.appendChild(icon);
 
     const heading = document.createElement('h3');
@@ -162,8 +163,8 @@ const NewsView = (() => {
     state.appendChild(sub);
 
     const cta = document.createElement('button');
-    cta.className = 'dash-btn-primary news-empty-cta';
-    cta.textContent = 'Browse Sources';
+    cta.className = 'news-empty-cta';
+    cta.textContent = 'Browse Sources →';
     cta.addEventListener('click', () => { _view = 'discover'; _rerender(); });
     state.appendChild(cta);
 
@@ -528,6 +529,7 @@ const NewsView = (() => {
 
   function _renderMyFeeds(wrap, gen) {
     const subscribedFeeds = _getSubscribedFeeds();
+    if (!subscribedFeeds.length) { _renderEmptyState(wrap); return; }
 
     const header = document.createElement('div');
     header.className = 'dash-header';

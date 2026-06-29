@@ -3024,24 +3024,60 @@ a:hover { text-decoration: underline; }
 /* ── News: empty state ───────────────────────────────────────────────────── */
 
 .news-empty-state {
-  display: flex; flex-direction: column; align-items: center;
-  padding: 80px 24px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 96px 24px 64px;
   text-align: center;
+  min-height: 420px;
 }
 .news-empty-icon {
   color: var(--text-secondary);
-  opacity: 0.4;
-  margin-bottom: 20px;
+  opacity: 0.35;
+  margin-bottom: 28px;
+  line-height: 0;
 }
 .news-empty-heading {
-  font-size: 20px; font-weight: 600; color: var(--text);
-  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
 }
 .news-empty-sub {
-  font-size: 14px; color: var(--text-secondary); margin: 0 0 28px;
-  max-width: 360px; line-height: 1.6;
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin: 0 0 36px;
+  max-width: 340px;
+  line-height: 1.65;
 }
-.news-empty-cta { font-size: 14px; padding: 10px 24px; }
+.news-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 13px 32px;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.news-empty-cta:hover {
+  opacity: 0.82;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+}
+.news-empty-cta:active {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 /* ── News: two-panel Discover layout ─────────────────────────────────────── */
 
