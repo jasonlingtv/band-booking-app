@@ -6,24 +6,22 @@ const NewsView = (() => {
   const CUSTOM_STORAGE_KEY = 'band_booking_news_custom_subs';
   const FAVICON_SVC        = 'https://www.google.com/s2/favicons?domain=';
   const FEEDLY_SEARCH      = 'https://cloud.feedly.com/v3/search/feeds?count=20&query=';
-  const SUGGESTED_IDS      = ['billboard', 'nme', 'techcrunch', 'daily-maverick'];
 
   let _subs           = new Set();
   let _customSubs     = []; // [{id, name, url, site, description}]
-  let _view           = 'discover'; // 'discover' | 'myfeeds'
+  let _view           = 'empty'; // 'empty' | 'discover' | 'myfeeds'
+  let _discoverActive = null;    // null = first cat, '__search__', or category name
   let _wrap           = null;
   let _gen            = 0;
   let _hoverShowTimer = null;
   let _hoverHideTimer = null;
   let _hoverPopover   = null;
-
-  // Feedly search state — persisted across rerenders
   let _feedlyQuery    = '';
-  let _feedlyResults  = null; // null = inactive, [] = no results, [...] = results
+  let _feedlyResults  = null; // null = inactive, [] = empty, [...] = results
   let _feedlyError    = false;
   let _feedlyDebounce = null;
 
-  // ── Subscription persistence ───────────────────────────────────────────────
+  // ── Persistence ────────────────────────────────────────────────────────────
 
   function _loadSubs() {
     try { _subs = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')); }
@@ -53,8 +51,7 @@ const NewsView = (() => {
   }
 
   function _getSubscribedFeeds() {
-    const curated = _getAllFeeds().filter(f => _subs.has(f.id));
-    return [...curated, ..._customSubs];
+    return [..._getAllFeeds().filter(f => _subs.has(f.id)), ..._customSubs];
   }
 
   function _getFeedByUrl(url) {
@@ -73,36 +70,26 @@ const NewsView = (() => {
     return _customSubs.some(f => f.url === url);
   }
 
-  function _followById(id) {
-    _subs.add(id);
-    _saveSubs();
+  function _isAllFollowed(cat) {
+    return cat.feeds.length > 0 && cat.feeds.every(f => _isFollowedById(f.id));
   }
 
-  function _unfollowById(id) {
-    _subs.delete(id);
-    _saveSubs();
-  }
+  function _followById(id) { _subs.add(id); _saveSubs(); }
+  function _unfollowById(id) { _subs.delete(id); _saveSubs(); }
 
   function _followByUrl(feedObj) {
     const curated = _getFeedByUrl(feedObj.url);
     if (curated) {
-      _subs.add(curated.id);
-      _saveSubs();
+      _subs.add(curated.id); _saveSubs();
     } else if (!_customSubs.some(f => f.url === feedObj.url)) {
-      _customSubs.push({ id: feedObj.url, ...feedObj });
-      _saveCustomSubs();
+      _customSubs.push({ id: feedObj.url, ...feedObj }); _saveCustomSubs();
     }
   }
 
   function _unfollowByUrl(url) {
     const curated = _getFeedByUrl(url);
-    if (curated) {
-      _subs.delete(curated.id);
-      _saveSubs();
-    } else {
-      _customSubs = _customSubs.filter(f => f.url !== url);
-      _saveCustomSubs();
-    }
+    if (curated) { _subs.delete(curated.id); _saveSubs(); }
+    else { _customSubs = _customSubs.filter(f => f.url !== url); _saveCustomSubs(); }
   }
 
   function _faviconUrl(domain) {
@@ -121,7 +108,8 @@ const NewsView = (() => {
   function render(el) {
     _loadSubs();
     _hidePopover();
-    if (!_hasAnySubs()) _view = 'discover';
+    if (!_hasAnySubs() && _view === 'myfeeds') _view = 'empty';
+    if (_hasAnySubs()  && _view === 'empty')   _view = 'myfeeds';
     _wrap = document.createElement('div');
     _wrap.className = 'dash-wrap news-wrap';
     _gen++;
@@ -139,18 +127,17 @@ const NewsView = (() => {
   function _rerender() {
     if (!_wrap || !_wrap.parentNode) return;
     _hidePopover();
-    if (!_hasAnySubs()) _view = 'discover';
+    if (!_hasAnySubs() && _view === 'myfeeds') _view = 'empty';
+    if (_hasAnySubs()  && _view === 'empty')   _view = 'myfeeds';
     _wrap.innerHTML = '';
     _gen++;
     _build(_wrap, _gen);
   }
 
   function _build(wrap, gen) {
-    if (_view === 'myfeeds') {
-      _renderMyFeeds(wrap, gen);
-    } else {
-      _renderDiscover(wrap);
-    }
+    if (_view === 'myfeeds') _renderMyFeeds(wrap, gen);
+    else if (_view === 'discover') _renderDiscover(wrap);
+    else _renderEmptyState(wrap);
   }
 
   // ── Empty state ────────────────────────────────────────────────────────────
@@ -161,7 +148,7 @@ const NewsView = (() => {
 
     const icon = document.createElement('div');
     icon.className = 'news-empty-icon';
-    icon.innerHTML = '<svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect x="6" y="8" width="36" height="32" rx="4" stroke="currentColor" stroke-width="2.5"/><line x1="14" y1="18" x2="34" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="24" x2="34" y2="24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="30" x2="26" y2="30" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    icon.innerHTML = '<svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true"><rect x="6" y="8" width="40" height="36" rx="5" stroke="currentColor" stroke-width="2.5"/><line x1="15" y1="20" x2="37" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="27" x2="37" y2="27" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="15" y1="34" x2="27" y2="34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
     state.appendChild(icon);
 
     const heading = document.createElement('h3');
@@ -171,71 +158,19 @@ const NewsView = (() => {
 
     const sub = document.createElement('p');
     sub.className = 'news-empty-sub';
-    sub.textContent = 'Follow sources you care about to see their latest stories here.';
+    sub.textContent = 'Browse our curated sources and follow the ones you care about';
     state.appendChild(sub);
 
     const cta = document.createElement('button');
     cta.className = 'dash-btn-primary news-empty-cta';
-    cta.textContent = 'Browse Sources →';
-    cta.addEventListener('click', () => {
-      const searchEl = wrap.querySelector('.news-feedly-input');
-      if (searchEl) {
-        searchEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        setTimeout(() => searchEl.focus(), 250);
-      }
-    });
+    cta.textContent = 'Browse Sources';
+    cta.addEventListener('click', () => { _view = 'discover'; _rerender(); });
     state.appendChild(cta);
+
     wrap.appendChild(state);
-
-    // Suggested teasers
-    const suggestLabel = document.createElement('div');
-    suggestLabel.className = 'news-suggested-label';
-    suggestLabel.textContent = 'Suggested sources to get you started';
-    wrap.appendChild(suggestLabel);
-
-    const grid = document.createElement('div');
-    grid.className = 'news-feed-grid news-suggested-grid';
-    const allFeeds = _getAllFeeds();
-    SUGGESTED_IDS
-      .map(id => allFeeds.find(f => f.id === id))
-      .filter(Boolean)
-      .forEach(feed => grid.appendChild(_makeSuggestedCard(feed)));
-    wrap.appendChild(grid);
   }
 
-  function _makeSuggestedCard(feed) {
-    const card = document.createElement('div');
-    card.className = 'news-feed-card news-suggested-card';
-
-    const info = document.createElement('div');
-    info.className = 'news-feed-info';
-    const name = document.createElement('div');
-    name.className = 'news-feed-name';
-    name.textContent = feed.name;
-    info.appendChild(name);
-    const site = document.createElement('div');
-    site.className = 'news-feed-site';
-    site.textContent = feed.site;
-    info.appendChild(site);
-    const desc = document.createElement('div');
-    desc.className = 'news-feed-desc';
-    desc.textContent = feed.description;
-    info.appendChild(desc);
-    card.appendChild(info);
-
-    const btn = document.createElement('button');
-    btn.className = 'news-follow-btn';
-    btn.textContent = '+ Follow';
-    btn.addEventListener('click', () => {
-      _followById(feed.id);
-      _view = 'myfeeds';
-      _rerender();
-    });
-    card.appendChild(btn);
-    return card;
-  }
-
-  // ── Discover view ──────────────────────────────────────────────────────────
+  // ── Discover: two-panel layout ─────────────────────────────────────────────
 
   function _renderDiscover(wrap) {
     const header = document.createElement('div');
@@ -244,18 +179,150 @@ const NewsView = (() => {
     title.className = 'dash-title';
     title.textContent = 'Discover News Feeds';
     header.appendChild(title);
-    if (_hasAnySubs()) {
-      const myBtn = document.createElement('button');
-      myBtn.className = 'dash-btn-primary';
-      myBtn.textContent = 'My Feeds (' + (_subs.size + _customSubs.length) + ')';
-      myBtn.addEventListener('click', () => { _view = 'myfeeds'; _rerender(); });
-      header.appendChild(myBtn);
-    }
+
+    const myBtn = document.createElement('button');
+    myBtn.className = 'dash-btn-primary';
+    myBtn.style.display = _hasAnySubs() ? '' : 'none';
+    myBtn.textContent = 'My Feeds (' + (_subs.size + _customSubs.length) + ')';
+    myBtn.addEventListener('click', () => { _view = 'myfeeds'; _rerender(); });
+    header.appendChild(myBtn);
     wrap.appendChild(header);
 
-    if (!_hasAnySubs()) _renderEmptyState(wrap);
+    // Ensure a valid active category
+    if (!_discoverActive || (_discoverActive !== '__search__' && !FEED_LIBRARY.some(c => c.category === _discoverActive))) {
+      _discoverActive = FEED_LIBRARY[0].category;
+    }
 
-    // Feedly search bar
+    const layout = document.createElement('div');
+    layout.className = 'news-discover-layout';
+
+    const menuEl = document.createElement('div');
+    menuEl.className = 'news-cat-menu';
+
+    const panelEl = document.createElement('div');
+    panelEl.className = 'news-cat-panel';
+
+    // Map category name → check span element (for "✓ All" updates)
+    const menuCheckEls = new Map();
+
+    function refreshHeader() {
+      const count = _subs.size + _customSubs.length;
+      myBtn.style.display = count > 0 ? '' : 'none';
+      myBtn.textContent = 'My Feeds (' + count + ')';
+    }
+
+    function refreshMenuCheck(catName) {
+      const cat = FEED_LIBRARY.find(c => c.category === catName);
+      const el = menuCheckEls.get(catName);
+      if (cat && el) el.style.display = _isAllFollowed(cat) ? '' : 'none';
+    }
+
+    function onFollowChange(catName) {
+      refreshHeader();
+      if (catName) refreshMenuCheck(catName);
+    }
+
+    function showCategory(cat, menuItem) {
+      menuEl.querySelectorAll('.news-cat-menu-item').forEach(i => i.classList.remove('active'));
+      menuItem.classList.add('active');
+      _discoverActive = cat.category;
+      _setCategoryPanel(panelEl, cat, (cn) => onFollowChange(cn || cat.category));
+    }
+
+    function showSearch(menuItem) {
+      menuEl.querySelectorAll('.news-cat-menu-item').forEach(i => i.classList.remove('active'));
+      menuItem.classList.add('active');
+      _discoverActive = '__search__';
+      _setSearchPanel(panelEl, () => onFollowChange(null));
+    }
+
+    // Build category menu items
+    FEED_LIBRARY.forEach((cat, idx) => {
+      const item = document.createElement('div');
+      item.className = 'news-cat-menu-item' + (_discoverActive === cat.category ? ' active' : '');
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'news-cat-menu-name';
+      nameEl.textContent = cat.category;
+      item.appendChild(nameEl);
+
+      const badge = document.createElement('span');
+      badge.className = 'news-cat-menu-badge';
+      badge.textContent = cat.feeds.length;
+      item.appendChild(badge);
+
+      const check = document.createElement('span');
+      check.className = 'news-cat-menu-check';
+      check.textContent = '✓';
+      check.title = 'All followed';
+      check.style.display = _isAllFollowed(cat) ? '' : 'none';
+      item.appendChild(check);
+      menuCheckEls.set(cat.category, check);
+
+      const chevron = document.createElement('span');
+      chevron.className = 'news-cat-menu-chevron';
+      chevron.textContent = '›';
+      item.appendChild(chevron);
+
+      item.addEventListener('mouseenter', () => showCategory(cat, item));
+      menuEl.appendChild(item);
+    });
+
+    // Search item at bottom
+    const searchItem = document.createElement('div');
+    searchItem.className = 'news-cat-menu-item news-cat-menu-search' + (_discoverActive === '__search__' ? ' active' : '');
+    const searchNameEl = document.createElement('span');
+    searchNameEl.className = 'news-cat-menu-name';
+    searchNameEl.textContent = 'Search';
+    searchItem.appendChild(searchNameEl);
+    const searchIconEl = document.createElement('span');
+    searchIconEl.className = 'news-cat-menu-search-icon';
+    searchIconEl.textContent = '🔍';
+    searchItem.appendChild(searchIconEl);
+    searchItem.addEventListener('click', () => showSearch(searchItem));
+    menuEl.appendChild(searchItem);
+
+    layout.appendChild(menuEl);
+    layout.appendChild(panelEl);
+    wrap.appendChild(layout);
+
+    // Render initial right panel
+    if (_discoverActive === '__search__') {
+      _setSearchPanel(panelEl, () => onFollowChange(null));
+    } else {
+      const initialCat = FEED_LIBRARY.find(c => c.category === _discoverActive) || FEED_LIBRARY[0];
+      _discoverActive = initialCat.category;
+      _setCategoryPanel(panelEl, initialCat, (cn) => onFollowChange(cn || initialCat.category));
+    }
+  }
+
+  // ── Discover: category panel ───────────────────────────────────────────────
+
+  function _setCategoryPanel(panelEl, cat, onFollowChange) {
+    panelEl.innerHTML = '';
+    const content = document.createElement('div');
+    content.className = 'news-cat-panel-content';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'news-cat-panel-title';
+    titleEl.textContent = cat.category;
+    content.appendChild(titleEl);
+
+    const grid = document.createElement('div');
+    grid.className = 'news-discover-grid';
+    cat.feeds.forEach(feed => grid.appendChild(_makeDiscoverCard(feed, () => onFollowChange && onFollowChange(cat.category))));
+    content.appendChild(grid);
+
+    panelEl.appendChild(content);
+  }
+
+  // ── Discover: search panel ─────────────────────────────────────────────────
+
+  function _setSearchPanel(panelEl, onFollowChange) {
+    panelEl.innerHTML = '';
+    const content = document.createElement('div');
+    content.className = 'news-cat-panel-content';
+
     const searchRow = document.createElement('div');
     searchRow.className = 'news-search-row';
     const searchWrap = document.createElement('div');
@@ -263,231 +330,197 @@ const NewsView = (() => {
 
     const input = document.createElement('input');
     input.type = 'text';
-    input.className = 'news-search-input news-feedly-input';
+    input.className = 'news-search-input news-panel-search-input';
     input.placeholder = 'Search for any topic, publication or website…';
     input.value = _feedlyQuery;
 
     const clearBtn = document.createElement('button');
     clearBtn.className = 'news-search-clear';
     clearBtn.textContent = '✕';
-    clearBtn.title = 'Clear search';
     clearBtn.style.display = _feedlyQuery ? '' : 'none';
 
     searchWrap.appendChild(input);
     searchWrap.appendChild(clearBtn);
     searchRow.appendChild(searchWrap);
-    wrap.appendChild(searchRow);
+    content.appendChild(searchRow);
 
-    // Results container (above categories) and categories container
     const resultsEl = document.createElement('div');
     resultsEl.className = 'news-search-results';
-    resultsEl.style.display = _feedlyResults !== null ? '' : 'none';
 
-    const categoriesEl = document.createElement('div');
-    categoriesEl.style.display = _feedlyResults !== null ? 'none' : '';
+    function showHint() {
+      const p = document.createElement('p');
+      p.className = 'dash-empty';
+      p.textContent = 'Type to search for any RSS feed by topic, publication or website.';
+      resultsEl.innerHTML = '';
+      resultsEl.appendChild(p);
+    }
 
-    // Wire clear button
     clearBtn.addEventListener('click', () => {
       _feedlyQuery = '';
       _feedlyResults = null;
       _feedlyError = false;
       input.value = '';
       clearBtn.style.display = 'none';
-      resultsEl.innerHTML = '';
-      resultsEl.style.display = 'none';
-      categoriesEl.style.display = '';
+      showHint();
     });
 
-    // Wire search input
     input.addEventListener('input', () => {
       const q = input.value.trim();
       _feedlyQuery = q;
       clearBtn.style.display = q ? '' : 'none';
       clearTimeout(_feedlyDebounce);
-      if (!q) {
-        _feedlyResults = null;
-        _feedlyError = false;
-        resultsEl.innerHTML = '';
-        resultsEl.style.display = 'none';
-        categoriesEl.style.display = '';
-        return;
-      }
+      if (!q) { _feedlyResults = null; _feedlyError = false; showHint(); return; }
       resultsEl.innerHTML = '<div class="news-search-loading">Searching…</div>';
-      resultsEl.style.display = '';
-      categoriesEl.style.display = 'none';
-      _feedlyDebounce = setTimeout(() => _runFeedlySearch(q, resultsEl), 500);
+      _feedlyDebounce = setTimeout(() => _runFeedlySearch(q, resultsEl, onFollowChange), 500);
     });
 
-    // Re-populate results if a search was active before rerender
     if (_feedlyResults !== null) {
-      _renderFeedlyResults(resultsEl, _feedlyResults, _feedlyError);
+      _renderFeedlyResults(resultsEl, _feedlyResults, _feedlyError, onFollowChange);
+    } else {
+      showHint();
     }
 
-    wrap.appendChild(resultsEl);
-
-    _renderCategories(categoriesEl);
-    wrap.appendChild(categoriesEl);
+    content.appendChild(resultsEl);
+    panelEl.appendChild(content);
+    setTimeout(() => input.focus(), 50);
   }
 
   // ── Feedly search ──────────────────────────────────────────────────────────
 
-  async function _runFeedlySearch(query, container) {
+  async function _runFeedlySearch(query, container, onFollowChange) {
     try {
       const res = await window.fetch(FEEDLY_SEARCH + encodeURIComponent(query));
       if (!res.ok) throw new Error('non-ok');
       const data = await res.json();
       _feedlyResults = data.results || [];
       _feedlyError = false;
-      _renderFeedlyResults(container, _feedlyResults, false);
+      _renderFeedlyResults(container, _feedlyResults, false, onFollowChange);
     } catch (_) {
       _feedlyResults = [];
       _feedlyError = true;
-      _renderFeedlyResults(container, [], true);
+      _renderFeedlyResults(container, [], true, onFollowChange);
     }
   }
 
-  function _renderFeedlyResults(container, results, isError) {
+  function _renderFeedlyResults(container, results, isError, onFollowChange) {
     container.innerHTML = '';
     if (isError) {
-      const msg = document.createElement('p');
-      msg.className = 'dash-empty';
-      msg.textContent = 'Feed search is unavailable right now. Browse the curated library below.';
-      // Show categories again when search fails
-      const catEl = container.nextElementSibling;
-      if (catEl) catEl.style.display = '';
-      container.appendChild(msg);
+      const p = document.createElement('p');
+      p.className = 'dash-empty';
+      p.textContent = 'Feed search is unavailable right now. Try browsing the curated library.';
+      container.appendChild(p);
       return;
     }
     if (!results.length) {
-      const msg = document.createElement('p');
-      msg.className = 'dash-empty';
-      msg.textContent = 'No feeds found. Try a different search term.';
-      container.appendChild(msg);
+      const p = document.createElement('p');
+      p.className = 'dash-empty';
+      p.textContent = 'No feeds found. Try a different search term.';
+      container.appendChild(p);
       return;
     }
     const label = document.createElement('div');
-    label.className = 'news-cat-title';
+    label.className = 'news-cat-panel-title';
     label.textContent = results.length + ' feed' + (results.length === 1 ? '' : 's') + ' found';
     container.appendChild(label);
 
     const grid = document.createElement('div');
-    grid.className = 'news-feed-grid';
+    grid.className = 'news-discover-grid';
     results.forEach(r => {
       const url = r.feedId ? r.feedId.replace(/^feed\//, '') : (r.website || '');
       if (!url) return;
       let site = '';
       try { site = new URL(r.website || ('https://' + url)).hostname.replace(/^www\./, ''); } catch (_) { site = url; }
-      const subsText = _formatSubs(r.subscribers);
-      grid.appendChild(_makeSearchResultCard({
-        url,
-        name: r.title || site,
-        site,
-        description: r.description || '',
-        subsText,
-      }));
+      grid.appendChild(_makeSearchResultCard({ url, name: r.title || site, site, description: r.description || '', subsText: _formatSubs(r.subscribers) }, onFollowChange));
     });
     container.appendChild(grid);
   }
 
-  function _makeSearchResultCard(feedObj) {
-    const followed = _isFollowedByUrl(feedObj.url);
-    const card = document.createElement('div');
-    card.className = 'news-feed-card' + (followed ? ' following' : '');
+  // ── Discover cards ─────────────────────────────────────────────────────────
 
-    const info = document.createElement('div');
-    info.className = 'news-feed-info';
-    const name = document.createElement('div');
-    name.className = 'news-feed-name';
-    name.textContent = feedObj.name;
-    info.appendChild(name);
-    const site = document.createElement('div');
-    site.className = 'news-feed-site';
-    site.textContent = feedObj.site + (feedObj.subsText ? ' · ' + feedObj.subsText + ' followers' : '');
-    info.appendChild(site);
-    if (feedObj.description) {
-      const desc = document.createElement('div');
-      desc.className = 'news-feed-desc';
-      desc.textContent = feedObj.description;
-      info.appendChild(desc);
-    }
-    card.appendChild(info);
-
-    const btn = document.createElement('button');
-    btn.className = 'news-follow-btn' + (followed ? ' following' : '');
-    btn.textContent = followed ? 'Following ✓' : '+ Follow';
-    btn.addEventListener('click', () => {
-      if (_isFollowedByUrl(feedObj.url)) {
-        _unfollowByUrl(feedObj.url);
-        btn.className = 'news-follow-btn';
-        btn.textContent = '+ Follow';
-        card.classList.remove('following');
-      } else {
-        _followByUrl(feedObj);
-        btn.className = 'news-follow-btn following';
-        btn.textContent = 'Following ✓';
-        card.classList.add('following');
-      }
-    });
-    card.appendChild(btn);
+  function _makeDiscoverCard(feed, onFollowChange) {
+    const card = _buildDiscoverCard(
+      feed.site,
+      feed.name,
+      feed.description,
+      feed.site,
+      null,
+      () => _isFollowedById(feed.id),
+      () => { _followById(feed.id); },
+      () => { _unfollowById(feed.id); },
+      onFollowChange
+    );
     return card;
   }
 
-  // ── Curated categories ─────────────────────────────────────────────────────
-
-  function _renderCategories(wrap) {
-    FEED_LIBRARY.forEach(cat => {
-      const section = document.createElement('div');
-      section.className = 'news-cat-section';
-      const catLabel = document.createElement('div');
-      catLabel.className = 'news-cat-title';
-      catLabel.textContent = cat.category;
-      section.appendChild(catLabel);
-      const grid = document.createElement('div');
-      grid.className = 'news-feed-grid';
-      cat.feeds.forEach(feed => grid.appendChild(_makeDiscoverCard(feed)));
-      section.appendChild(grid);
-      wrap.appendChild(section);
-    });
+  function _makeSearchResultCard(feedObj, onFollowChange) {
+    return _buildDiscoverCard(
+      feedObj.site,
+      feedObj.name,
+      feedObj.description,
+      feedObj.site + (feedObj.subsText ? ' · ' + feedObj.subsText + ' followers' : ''),
+      null,
+      () => _isFollowedByUrl(feedObj.url),
+      () => { _followByUrl(feedObj); },
+      () => { _unfollowByUrl(feedObj.url); },
+      onFollowChange
+    );
   }
 
-  function _makeDiscoverCard(feed) {
-    const followed = _isFollowedById(feed.id);
+  function _buildDiscoverCard(faviconDomain, name, description, siteLabel, subsText, isFollowedFn, followFn, unfollowFn, onFollowChange) {
+    const followed = isFollowedFn();
     const card = document.createElement('div');
-    card.className = 'news-feed-card' + (followed ? ' following' : '');
+    card.className = 'news-discover-card' + (followed ? ' following' : '');
 
-    const info = document.createElement('div');
-    info.className = 'news-feed-info';
-    const name = document.createElement('div');
-    name.className = 'news-feed-name';
-    name.textContent = feed.name;
-    info.appendChild(name);
-    const site = document.createElement('div');
-    site.className = 'news-feed-site';
-    site.textContent = feed.site;
-    info.appendChild(site);
-    const desc = document.createElement('div');
-    desc.className = 'news-feed-desc';
-    desc.textContent = feed.description;
-    info.appendChild(desc);
-    card.appendChild(info);
+    // Favicon + name row
+    const top = document.createElement('div');
+    top.className = 'news-discover-card-top';
+    const favicon = document.createElement('img');
+    favicon.className = 'news-discover-favicon';
+    favicon.src = _faviconUrl(faviconDomain);
+    favicon.alt = '';
+    favicon.addEventListener('error', function() { this.style.display = 'none'; });
+    top.appendChild(favicon);
+    const nameEl = document.createElement('span');
+    nameEl.className = 'news-discover-name';
+    nameEl.textContent = name;
+    top.appendChild(nameEl);
+    card.appendChild(top);
+
+    // Description
+    if (description) {
+      const desc = document.createElement('div');
+      desc.className = 'news-discover-desc';
+      desc.textContent = description;
+      card.appendChild(desc);
+    }
+
+    // Footer: site label + follow button
+    const footer = document.createElement('div');
+    footer.className = 'news-discover-card-footer';
+    const siteEl = document.createElement('div');
+    siteEl.className = 'news-discover-site';
+    siteEl.textContent = siteLabel;
+    footer.appendChild(siteEl);
 
     const btn = document.createElement('button');
     btn.className = 'news-follow-btn' + (followed ? ' following' : '');
     btn.textContent = followed ? 'Following ✓' : '+ Follow';
     btn.addEventListener('click', () => {
-      if (_isFollowedById(feed.id)) {
-        _unfollowById(feed.id);
+      if (isFollowedFn()) {
+        unfollowFn();
         btn.className = 'news-follow-btn';
         btn.textContent = '+ Follow';
         card.classList.remove('following');
       } else {
-        _followById(feed.id);
+        followFn();
         btn.className = 'news-follow-btn following';
         btn.textContent = 'Following ✓';
         card.classList.add('following');
       }
+      if (onFollowChange) onFollowChange();
     });
-    card.appendChild(btn);
+    footer.appendChild(btn);
+    card.appendChild(footer);
     return card;
   }
 
@@ -533,11 +566,10 @@ const NewsView = (() => {
       const totalItems   = results.reduce((n, r) => n + (r.result.items || []).length, 0);
       const oldestFetch  = results.reduce((m, r) => (r.result.fetchedAt || Infinity) < m ? r.result.fetchedAt : m, Infinity);
       const minsSince    = Number.isFinite(oldestFetch) ? Math.floor((Date.now() - oldestFetch) / 60000) : 0;
-      const updatedText  = minsSince === 0 ? 'just now' : minsSince + 'm ago';
 
       const statusBar = document.createElement('div');
       statusBar.className = 'news-status-bar';
-      statusBar.textContent = totalItems + ' headlines from ' + successCount + '/' + results.length + ' feeds — updated ' + updatedText;
+      statusBar.textContent = totalItems + ' headlines from ' + successCount + '/' + results.length + ' feeds — updated ' + (minsSince === 0 ? 'just now' : minsSince + 'm ago');
       wrap.appendChild(statusBar);
 
       _renderSourceGrid(wrap, results);
@@ -611,10 +643,7 @@ const NewsView = (() => {
     thumb.alt = '';
     if (item.thumbnail) {
       thumb.src = item.thumbnail;
-      thumb.addEventListener('error', function() {
-        this.src = _faviconUrl(feed.site);
-        this.classList.add('news-article-thumb--favicon');
-      });
+      thumb.addEventListener('error', function() { this.src = _faviconUrl(feed.site); this.classList.add('news-article-thumb--favicon'); });
     } else {
       thumb.src = _faviconUrl(feed.site);
       thumb.classList.add('news-article-thumb--favicon');
@@ -642,15 +671,8 @@ const NewsView = (() => {
     row.appendChild(body);
 
     if (item.description) {
-      row.addEventListener('mouseenter', () => {
-        clearTimeout(_hoverHideTimer); _hoverHideTimer = null;
-        clearTimeout(_hoverShowTimer);
-        _hoverShowTimer = setTimeout(() => _showPopover(row, item.description), 350);
-      });
-      row.addEventListener('mouseleave', () => {
-        clearTimeout(_hoverShowTimer); _hoverShowTimer = null;
-        _hoverHideTimer = setTimeout(() => _hidePopover(), 250);
-      });
+      row.addEventListener('mouseenter', () => { clearTimeout(_hoverHideTimer); _hoverHideTimer = null; clearTimeout(_hoverShowTimer); _hoverShowTimer = setTimeout(() => _showPopover(row, item.description), 350); });
+      row.addEventListener('mouseleave', () => { clearTimeout(_hoverShowTimer); _hoverShowTimer = null; _hoverHideTimer = setTimeout(() => _hidePopover(), 250); });
     }
     return row;
   }
@@ -679,11 +701,9 @@ const NewsView = (() => {
     const rect = row.getBoundingClientRect();
     pop.style.top = rect.top + 'px';
     if (rect.right + 12 + 280 <= window.innerWidth) {
-      pop.style.left  = (rect.right + 12) + 'px';
-      pop.style.right = 'auto';
+      pop.style.left = (rect.right + 12) + 'px'; pop.style.right = 'auto';
     } else {
-      pop.style.right = (window.innerWidth - rect.left + 12) + 'px';
-      pop.style.left  = 'auto';
+      pop.style.right = (window.innerWidth - rect.left + 12) + 'px'; pop.style.left = 'auto';
     }
   }
 
