@@ -108,8 +108,8 @@ const NewsView = (() => {
   function render(el) {
     _loadSubs();
     _hidePopover();
-    if (!_hasAnySubs() && _view === 'myfeeds') _view = 'empty';
-    if (_hasAnySubs()  && _view === 'empty')   _view = 'myfeeds';
+    if (!_hasAnySubs()) _view = 'empty';
+    else if (_view === 'empty') _view = 'myfeeds';
     _wrap = document.createElement('div');
     _wrap.className = 'dash-wrap news-wrap';
     _gen++;
@@ -127,8 +127,8 @@ const NewsView = (() => {
   function _rerender() {
     if (!_wrap || !_wrap.parentNode) return;
     _hidePopover();
-    if (!_hasAnySubs() && _view === 'myfeeds') _view = 'empty';
-    if (_hasAnySubs()  && _view === 'empty')   _view = 'myfeeds';
+    if (!_hasAnySubs() && _view !== 'discover') _view = 'empty';
+    else if (_hasAnySubs() && _view === 'empty') _view = 'myfeeds';
     _wrap.innerHTML = '';
     _gen++;
     _build(_wrap, _gen);
