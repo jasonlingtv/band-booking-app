@@ -294,6 +294,31 @@ A task with `blank: true` shows:
 
 ---
 
+## News Feeds (Dashboard tab)
+
+The **News** tab in the Dashboard is a curated RSS feed aggregator.
+
+### Architecture
+- **Feed library**: `feeds.js` — hardcoded `FEED_LIBRARY` array. `// MEGA_MASTER_ONLY` — editable via Dashboard UI in a future update. No user-facing edit flow yet.
+- **RSS fetching**: `rssService.js` — `RssService.fetch(url)` resolves via two-stage CORS proxy:
+  1. Primary: `https://api.rss2json.com/v1/api.json?rss_url=ENCODED_URL` (JSON, no XML parsing needed)
+  2. Fallback: `https://corsproxy.io/?ENCODED_URL` + `DOMParser` XML parse
+  - Results are cached in-memory for 5 minutes. `RssService.invalidateAll()` clears the cache.
+- **UI**: `newsView.js` — `NewsView.render(el)` and `NewsView.cleanup()` (called from `Dashboard.clearTimers()`).
+
+### Views
+- **Discover** (default when no subscriptions): all feeds grouped by category with search filter and Follow/Unfollow per card.
+- **My Feeds** (once ≥1 subscription): fetches all subscribed feeds in parallel, shows combined headline list. Toggle between Chronological and By Source views. Graceful per-feed error state.
+
+### Subscriptions
+- Stored in localStorage under `band_booking_news_subs` as a JSON array of feed IDs.
+- Phase 2: move to user profile when accounts are added.
+
+### Hover preview
+- Hovering a headline (350ms delay) shows a fixed-position popover with the article excerpt. Implemented independently of `DetailPanel` (which is task/template-specific).
+
+---
+
 ## File Organization
 
 | File | Responsibility |
@@ -307,5 +332,8 @@ A task with `blank: true` shows:
 | `listview.js` | Section/task list view, drag-and-drop |
 | `boardview.js` | Board (Kanban) view |
 | `detail.js` | Task detail panel — template-driven renderer + comments section. Houses `CURRENT_USER` constant. |
-| `dashboard.js` | Settings screen — template list, create/edit/delete templates |
+| `feeds.js` | Master RSS feed library (MEGA_MASTER_ONLY hardcoded data) |
+| `rssService.js` | RSS fetch/cache utility — CORS proxy + fallback XML parse |
+| `newsView.js` | News tab UI — Discover view, My Feeds view, headline list, hover popover |
+| `dashboard.js` | Settings screen — template list, create/edit/delete templates, tabs: Templates / To Do / News |
 | `app.js` | App init, event wiring, dashboard show/hide |

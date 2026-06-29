@@ -10,10 +10,9 @@
     Calendar.init();
     DetailPanel.init();
 
-    // If no teams exist, create a sample one to get started
+    // If no teams exist, create a sample one to get started (empty — user adds projects)
     if (!DataLayer.getTeams().length) {
-      const team = DataLayer.addTeam('My Band');
-      DataLayer.setActiveProjectId(team.projects[0].id);
+      DataLayer.addTeam('My Band');
     }
 
     // Sidebar
@@ -37,12 +36,13 @@
     const activeView = DataLayer.getActiveView();
     document.querySelectorAll('.view-tab').forEach(b => b.classList.toggle('active', b.dataset.view === activeView));
 
-    // Add team button
+    // Add team button — create empty team then immediately prompt to add first project
     document.getElementById('add-team-btn').addEventListener('click', () => {
       const name = window.prompt('Team name (band name):');
       if (name && name.trim()) {
-        DataLayer.addTeam(name.trim());
+        const team = DataLayer.addTeam(name.trim());
         Sidebar.render();
+        Sidebar.addProjectFlow(team.id, document.getElementById('add-team-btn'));
       }
     });
 

@@ -3,8 +3,6 @@ const ListView = (() => {
   'use strict';
 
   let _pendingEditId = null;
-  let _pendingSectionPickerId = null; // task id awaiting section assignment after name commit
-  let _sectionPickerDismiss = null;   // document-level mousedown handler for picker dismiss
   let _dragKey = null; // column key currently being dragged (column header reorder)
 
   // ── Row/section drag state ────────────────────────────────────────────────
@@ -133,10 +131,6 @@ const ListView = (() => {
   // ── Main render ───────────────────────────────────────────────────────────
 
   function render() {
-    if (_sectionPickerDismiss) {
-      document.removeEventListener('mousedown', _sectionPickerDismiss, true);
-      _sectionPickerDismiss = null;
-    }
     const container = document.getElementById('list-view');
 
     // Attach container-level drag handlers once
@@ -352,8 +346,6 @@ const ListView = (() => {
         }
         DataLayer.updateTask(task.id, Utils.taskTitleChanges(raw));
         _pendingEditId = null;
-        const sections = DataLayer.getSections(DataLayer.getActiveProjectId()) || [];
-        if (sections.length > 1) _pendingSectionPickerId = task.id;
         render();
       }
 
@@ -375,43 +367,6 @@ const ListView = (() => {
       span.textContent = task.title || 'Untitled';
       col.appendChild(span);
 
-      if (_pendingSectionPickerId === task.id) {
-        const picker = document.createElement('div');
-        picker.className = 'task-section-picker';
-
-        const pickerLbl = document.createElement('span');
-        pickerLbl.className = 'task-section-picker-label';
-        pickerLbl.textContent = 'Move to:';
-        picker.appendChild(pickerLbl);
-
-        const currentSec = DataLayer.getTaskSection(task.id);
-        const sections = DataLayer.getSections(DataLayer.getActiveProjectId()) || [];
-        sections.forEach(sec => {
-          const pill = document.createElement('button');
-          pill.className = 'task-section-pill' + (currentSec && sec.id === currentSec.id ? ' active' : '');
-          pill.textContent = sec.name || 'Unnamed';
-          pill.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
-          pill.addEventListener('click', e => {
-            e.stopPropagation();
-            _pendingSectionPickerId = null;
-            if (!currentSec || sec.id !== currentSec.id) DataLayer.moveTaskToSection(task.id, sec.id);
-            render();
-          });
-          picker.appendChild(pill);
-        });
-
-        col.appendChild(picker);
-
-        _sectionPickerDismiss = (e) => {
-          if (!col.contains(e.target)) {
-            document.removeEventListener('mousedown', _sectionPickerDismiss, true);
-            _sectionPickerDismiss = null;
-            _pendingSectionPickerId = null;
-            render();
-          }
-        };
-        setTimeout(() => document.addEventListener('mousedown', _sectionPickerDismiss, true), 0);
-      }
     }
 
     return col;

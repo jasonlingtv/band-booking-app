@@ -44,13 +44,7 @@ const DataLayer = (() => {
           ? _data.templates[0].id
           : 'tmpl_band_booking');
     const project = { id: Utils.generateId(), name, sections: [], templateId: tid };
-    if (sectionsSpec === true) {
-      project.sections = [
-        _makeSection('Planning', 'amber'),
-        _makeSection('Optioned', 'blue'),
-        _makeSection('Confirmed', 'green')
-      ];
-    } else if (Array.isArray(sectionsSpec)) {
+    if (Array.isArray(sectionsSpec)) {
       project.sections = sectionsSpec.map(ps => _makeSection(ps.name, 'amber'));
     }
     // else false/null/undefined → no sections
@@ -62,7 +56,7 @@ const DataLayer = (() => {
       id: Utils.generateId(),
       name,
       collapsed: false,
-      projects: [_makeProject('Bookings', true), _makeProject('Admin', true)]
+      projects: []
     };
   }
 
@@ -325,6 +319,16 @@ const DataLayer = (() => {
     // 11. Ensure defaultTemplatesVisible exists
     if (_data.defaultTemplatesVisible === undefined) { _data.defaultTemplatesVisible = true; dirty = true; }
 
+    // 12. Add Archive to Band Booking template projectSections if missing
+    for (const tmpl of _data.templates) {
+      if (tmpl.id !== 'tmpl_band_booking') continue;
+      if (!tmpl.projectSections) { tmpl.projectSections = []; dirty = true; }
+      if (!tmpl.projectSections.some(ps => ps.id === 'ps_bk_archive')) {
+        tmpl.projectSections.push({ id: 'ps_bk_archive', name: 'Archive' });
+        dirty = true;
+      }
+    }
+
     if (dirty) saveData();
   }
 
@@ -517,7 +521,7 @@ const DataLayer = (() => {
     const template = getTemplate(tid);
     const sectionsSpec = (template && template.projectSections && template.projectSections.length)
       ? template.projectSections
-      : true; // fallback: hardcoded Planning/Optioned/Confirmed
+      : [];
     const project = _makeProject(name, sectionsSpec, tid);
     team.projects.push(project);
     saveData();

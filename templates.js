@@ -29,7 +29,8 @@ const BAND_BOOKING_TEMPLATE = {
   projectSections: [
     { id: 'ps_bk_planning',  name: 'Planning' },
     { id: 'ps_bk_optioned',  name: 'Optioned' },
-    { id: 'ps_bk_confirmed', name: 'Confirmed' }
+    { id: 'ps_bk_confirmed', name: 'Confirmed' },
+    { id: 'ps_bk_archive',   name: 'Archive' }
   ],
   taskFeatures: {
     reminders: {

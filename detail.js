@@ -83,12 +83,13 @@ const DetailPanel = (() => {
     const sections = project ? DataLayer.getSections(project.id) : [];
     const template = (!task.blank && project) ? DataLayer.getProjectTemplate(project.id) : null;
 
-    _renderTitle(content, task, team);
-    _renderDates(content, task);
-    _renderSectionSelector(content, task, section, sections);
-    _renderChecklist(content, task, template);
+    // Explicit render order — do not reorder these calls
+    _renderTitle(content, task, team);                           // 1. title
+    _renderDates(content, task);                                 // 2. dates
+    _renderSectionSelector(content, task, section, sections);    // 3. section pills
+    _renderChecklist(content, task, template);                   // 4. checkpoints
     if (template && template.taskFeatures && template.taskFeatures.taskReminders && template.taskFeatures.taskReminders.enabled) {
-      _renderTaskReminderField(content, task);
+      _renderTaskReminderField(content, task);                   // 5. task reminder
     }
 
     if (task.blank) {
@@ -1467,6 +1468,20 @@ const DetailPanel = (() => {
           }, 250);
         });
         item.appendChild(a);
+
+        const preview = _getDocPreview(link);
+        if (preview) {
+          const previewBtn = document.createElement('button');
+          previewBtn.className = 'detail-link-preview-btn';
+          previewBtn.title = 'Preview document';
+          previewBtn.textContent = '👁';
+          previewBtn.addEventListener('click', e => {
+            e.preventDefault(); e.stopPropagation();
+            _openDocPreview(link, preview, link.replace(/^https?:\/\//, '').slice(0, 70));
+          });
+          item.appendChild(previewBtn);
+        }
+
         valueWrapper.appendChild(item);
       } else {
         const addBtn = document.createElement('span');
@@ -2456,6 +2471,112 @@ const DetailPanel = (() => {
       onConfirm(valid);
     });
     actions.appendChild(confirmBtn);
+  }
+
+  // ── Document / PDF inline preview ────────────────────────────────────────
+
+  function _getDocPreview(url) {
+    if (!url) return null;
+
+    const gdoc = url.match(/docs\.google\.com\/document\/d\/([^\/?\s#]+)/);
+    if (gdoc) return { embedUrl: 'https://docs.google.com/document/d/' + gdoc[1] + '/preview', type: 'gdoc' };
+
+    const gsheet = url.match(/docs\.google\.com\/spreadsheets\/d\/([^\/?\s#]+)/);
+    if (gsheet) return { embedUrl: 'https://docs.google.com/spreadsheets/d/' + gsheet[1] + '/preview?usp=sharing', type: 'gsheet' };
+
+    const gdrive = url.match(/drive\.google\.com\/file\/d\/([^\/?\s#]+)/);
+    if (gdrive) return { embedUrl: 'https://drive.google.com/file/d/' + gdrive[1] + '/preview', type: 'gdrive' };
+
+    if (/dropbox\.com\/s\//.test(url)) {
+      return { embedUrl: url.split('?')[0] + '?raw=1', type: 'dropbox' };
+    }
+
+    if (/onedrive\.live\.com\//.test(url) || /1drv\.ms\//.test(url)) {
+      return { embedUrl: url, type: 'onedrive' };
+    }
+
+    if (/\.pdf(\?|#|$)/i.test(url) || /\/pdf\//i.test(url)) {
+      return { embedUrl: url, type: 'pdf' };
+    }
+
+    return null;
+  }
+
+  function _openDocPreview(url, previewInfo, label) {
+    const existing = document.getElementById('doc-preview-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'doc-preview-overlay';
+    overlay.className = 'doc-preview-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'doc-preview-modal';
+    modal.addEventListener('click', e => e.stopPropagation());
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'doc-preview-header';
+
+    const titleEl = document.createElement('span');
+    titleEl.className = 'doc-preview-title';
+    const display = label || url;
+    titleEl.textContent = display.length > 70 ? display.slice(0, 70) + '…' : display;
+    titleEl.title = url;
+    hdr.appendChild(titleEl);
+
+    const hdrActions = document.createElement('div');
+    hdrActions.className = 'doc-preview-header-actions';
+
+    const openBtn = document.createElement('a');
+    openBtn.className = 'doc-preview-open-btn';
+    openBtn.href = url; openBtn.target = '_blank'; openBtn.rel = 'noopener';
+    openBtn.textContent = '↗ Open in browser';
+    hdrActions.appendChild(openBtn);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'doc-preview-close';
+    closeBtn.textContent = '✕';
+    hdr.appendChild(hdrActions);
+    modal.appendChild(hdr);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'doc-preview-body';
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'doc-preview-frame';
+    iframe.src = previewInfo.embedUrl;
+    iframe.setAttribute('allowfullscreen', '');
+
+    const fallback = document.createElement('div');
+    fallback.className = 'doc-preview-fallback';
+    fallback.style.display = 'none';
+    const fallbackMsg = document.createElement('p');
+    fallbackMsg.textContent = 'This document requires access permissions — click to open in your browser instead.';
+    const fallbackLink = document.createElement('a');
+    fallbackLink.href = url; fallbackLink.target = '_blank'; fallbackLink.rel = 'noopener';
+    fallbackLink.textContent = 'Open externally →';
+    fallback.appendChild(fallbackMsg);
+    fallback.appendChild(fallbackLink);
+
+    iframe.addEventListener('error', () => { iframe.style.display = 'none'; fallback.style.display = ''; });
+
+    body.appendChild(iframe);
+    body.appendChild(fallback);
+    modal.appendChild(body);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    function close() {
+      overlay.remove();
+      document.removeEventListener('keydown', handleKey);
+    }
+    function handleKey(e) { if (e.key === 'Escape') close(); }
+    closeBtn.addEventListener('click', close);
+    hdrActions.appendChild(closeBtn);
+    overlay.addEventListener('click', close);
+    document.addEventListener('keydown', handleKey);
   }
 
   function _showLinkPopover(anchorEl, url, { onEdit, onRemove }) {

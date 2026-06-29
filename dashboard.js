@@ -5,7 +5,7 @@ const Dashboard = (() => {
   let _draft = null;        // deep clone of template being edited; null when on list view
   let _editingId = null;    // id of template being edited; null for a new template
   let _isNewDefault = false; // true when creating a new default template
-  let _dashTab = 'templates'; // 'templates' | 'todo'
+  let _dashTab = 'templates'; // 'templates' | 'todo' | 'news'
   let _todoTimer = null;
   let _hoverShowTimer = null;
   let _hoverHideTimer = null;
@@ -14,6 +14,9 @@ const Dashboard = (() => {
   let _previewTemplateId = null; // template id being previewed on hover (Templates tab)
   let _previewEl = null;         // live-preview column el (editor mode)
   let _refreshEditorPreview = null; // fn that rebuilds _previewEl from _draft
+  let _pendingNewIds = new Set(); // IDs of items just added, not yet confirmed by typing
+  let _demoState = {}; // Temp state for interactive demo preview; resets when editor closes
+  let _activeTemplateRow = null; // Template row currently showing the blue left-border accent
 
   function _clearTodoTimer() {
     if (_todoTimer) { clearInterval(_todoTimer); _todoTimer = null; }
@@ -47,6 +50,10 @@ const Dashboard = (() => {
           _previewTemplateId = null;
           DetailPanel.hide();
         }
+        if (_activeTemplateRow) {
+          _activeTemplateRow.classList.remove('dash-template-row--active');
+          _activeTemplateRow = null;
+        }
       }, 350);
     };
     panel.addEventListener('mouseenter', panel._dashTodoEnter);
@@ -66,6 +73,10 @@ const Dashboard = (() => {
     _previewEl = null;
     _refreshEditorPreview = null;
     _isNewDefault = false;
+    _pendingNewIds = new Set();
+    _demoState = {};
+    _activeTemplateRow = null;
+    if (typeof NewsView !== 'undefined') NewsView.cleanup();
   }
 
   const FIELD_TYPES = [
@@ -75,9 +86,9 @@ const Dashboard = (() => {
     { value: 'date',               label: 'Date picker' },
     { value: 'dropdown',           label: 'Dropdown' },
     { value: 'toggle',             label: 'Toggle (pill buttons)' },
-    { value: 'auto',               label: 'Auto (computed, read-only)' },
-    { value: 'time-select',        label: 'Time select' },
-    { value: 'time-select-na',     label: 'Time select (N/A option)' },
+    { value: 'auto',               label: 'Auto Task Name (read-only)' },
+    { value: 'time-select',        label: 'Time Selector' },
+    { value: 'time-select-na',     label: 'Time Selector (N/A)' },
     { value: 'catering-select',    label: 'Catering time' },
     { value: 'show-length-select', label: 'Show length' },
     { value: 'show-time',          label: 'Show time (composite)' },
@@ -102,7 +113,7 @@ const Dashboard = (() => {
     // Tab bar
     const tabBar = document.createElement('div');
     tabBar.className = 'dash-tab-bar';
-    [['templates', 'Templates'], ['todo', 'To Do']].forEach(([id, label]) => {
+    [['templates', 'Templates'], ['todo', 'To Do'], ['news', 'News']].forEach(([id, label]) => {
       const btn = document.createElement('button');
       btn.className = 'dash-tab-btn' + (_dashTab === id ? ' active' : '');
       btn.textContent = label;
@@ -113,6 +124,8 @@ const Dashboard = (() => {
 
     if (_dashTab === 'todo') {
       _renderTodo(el);
+    } else if (_dashTab === 'news') {
+      NewsView.render(el);
     } else {
       _renderList(el);
     }
@@ -241,6 +254,11 @@ const Dashboard = (() => {
 
   function _addTemplateRowHover(row, tmpl) {
     row.addEventListener('mouseenter', () => {
+      if (_activeTemplateRow && _activeTemplateRow !== row) {
+        _activeTemplateRow.classList.remove('dash-template-row--active');
+      }
+      _activeTemplateRow = row;
+      row.classList.add('dash-template-row--active');
       clearTimeout(_hoverHideTimer);
       _hoverHideTimer = null;
       clearTimeout(_hoverShowTimer);
@@ -257,6 +275,10 @@ const Dashboard = (() => {
           _previewTaskId = null;
           _previewTemplateId = null;
           DetailPanel.hide();
+        }
+        if (!_mouseInPanel && _activeTemplateRow === row) {
+          row.classList.remove('dash-template-row--active');
+          _activeTemplateRow = null;
         }
       }, 350);
     });
@@ -396,84 +418,107 @@ const Dashboard = (() => {
 
   function _buildTemplatePreviewContent(container, template) {
     if (!template) return;
+    const tf = template.taskFeatures || {};
 
-    // Demo task title
+    // ── Build all elements first ────────────────────────────────────────────
+
+    // 1. Demo task title
     const titleEl = document.createElement('div');
     titleEl.className = 'editor-preview-task-title';
     titleEl.textContent = 'Demo Task';
-    container.appendChild(titleEl);
 
-    // Sample date
-    const dates = document.createElement('div');
-    dates.className = 'detail-dates';
-    const pill = document.createElement('div');
-    pill.className = 'date-pill has-date';
-    const icon = document.createElement('span');
-    icon.className = 'pill-icon';
-    icon.textContent = '📅';
-    pill.appendChild(icon);
-    pill.appendChild(document.createTextNode(' 15 Aug 2026'));
-    dates.appendChild(pill);
-    container.appendChild(dates);
+    // 2. Sample date
+    const datesEl = document.createElement('div');
+    datesEl.className = 'detail-dates';
+    const datePill = document.createElement('div');
+    datePill.className = 'date-pill has-date';
+    const dateIcon = document.createElement('span');
+    dateIcon.className = 'pill-icon';
+    dateIcon.textContent = '📅';
+    datePill.appendChild(dateIcon);
+    datePill.appendChild(document.createTextNode(' 15 Aug 2026'));
+    datesEl.appendChild(datePill);
 
-    // Task checkpoints
-    const tf = template.taskFeatures;
-    if (tf && tf.reminders && tf.reminders.enabled && (tf.reminders.items || []).length > 0) {
-      const checklist = document.createElement('div');
-      checklist.className = 'detail-checklist';
+    // 3. Task checkpoints (optional)
+    let checklistEl = null;
+    if (tf.reminders && tf.reminders.enabled && (tf.reminders.items || []).length > 0) {
+      checklistEl = document.createElement('div');
+      checklistEl.className = 'detail-checklist';
       (tf.reminders.items || []).forEach(item => {
         const ci = document.createElement('div');
         ci.className = 'checklist-item';
         const chk = document.createElement('div');
-        chk.className = 'checklist-checkbox';
+        const isChecked = !!_demoState['_check_' + item.id];
+        chk.className = 'checklist-checkbox' + (isChecked ? ' checked' : '');
         const lbl = document.createElement('span');
         lbl.className = 'checklist-label';
         lbl.textContent = item.name || 'Checkpoint';
         ci.appendChild(chk);
         ci.appendChild(lbl);
-        checklist.appendChild(ci);
+        ci.addEventListener('click', () => {
+          const nowChecked = !_demoState['_check_' + item.id];
+          _demoState['_check_' + item.id] = nowChecked;
+          chk.classList.toggle('checked', nowChecked);
+        });
+        checklistEl.appendChild(ci);
       });
-      container.appendChild(checklist);
     }
 
-    // Task reminder field
-    if (tf && tf.taskReminders && tf.taskReminders.enabled) {
-      const rem = document.createElement('div');
-      rem.className = 'detail-task-reminder';
-      const ph = document.createElement('span');
-      ph.className = 'detail-reminder-placeholder';
-      ph.textContent = '+ add reminder';
-      rem.appendChild(ph);
-      container.appendChild(rem);
-    }
-
-    // Project sections preview
-    const psSelector = document.createElement('div');
-    psSelector.className = 'detail-section-selector';
-    psSelector.style.pointerEvents = 'none';
+    // 4. Project section pills
+    const psSelectorEl = document.createElement('div');
+    psSelectorEl.className = 'detail-section-selector';
     const psLabelEl = document.createElement('label');
     psLabelEl.textContent = 'Section:';
-    psSelector.appendChild(psLabelEl);
+    psSelectorEl.appendChild(psLabelEl);
     const psItems = (template.projectSections || []).filter(ps => ps.name);
     if (psItems.length) {
+      let activePsIdx = _demoState._activeSection !== undefined ? _demoState._activeSection : 0;
       psItems.forEach((ps, i) => {
-        const pill = document.createElement('button');
-        pill.className = 'section-pill' + (i === 0 ? ' active color-blue' : '');
-        pill.textContent = ps.name;
-        psSelector.appendChild(pill);
+        const p = document.createElement('button');
+        p.className = 'section-pill' + (i === activePsIdx ? ' active color-blue' : '');
+        p.textContent = ps.name;
+        p.addEventListener('click', () => {
+          activePsIdx = i;
+          _demoState._activeSection = i;
+          psSelectorEl.querySelectorAll('.section-pill').forEach((pill, pi) => {
+            pill.classList.toggle('active', pi === i);
+            pill.classList.toggle('color-blue', pi === i);
+          });
+        });
+        psSelectorEl.appendChild(p);
       });
     } else {
       ['e.g. Planning', 'e.g. Confirmed'].forEach((text, i) => {
-        const pill = document.createElement('button');
-        pill.className = 'section-pill' + (i === 0 ? ' active color-blue' : '');
-        pill.style.opacity = '0.4';
-        pill.textContent = text;
-        psSelector.appendChild(pill);
+        const p = document.createElement('button');
+        p.className = 'section-pill' + (i === 0 ? ' active color-blue' : '');
+        p.style.opacity = '0.4';
+        p.textContent = text;
+        psSelectorEl.appendChild(p);
       });
     }
-    container.appendChild(psSelector);
 
-    // Task sections
+    // 5. Task reminder (optional)
+    let reminderEl = null;
+    if (tf.taskReminders && tf.taskReminders.enabled) {
+      reminderEl = document.createElement('div');
+      reminderEl.className = 'detail-task-reminder';
+      const reminderInp = document.createElement('input');
+      reminderInp.type = 'text';
+      reminderInp.className = 'demo-preview-reminder-input';
+      reminderInp.placeholder = '+ add reminder';
+      reminderInp.value = _demoState._reminder || '';
+      reminderInp.addEventListener('input', () => { _demoState._reminder = reminderInp.value; });
+      reminderEl.appendChild(reminderInp);
+    }
+
+    // ── Append in guaranteed order ─────────────────────────────────────────
+    container.appendChild(titleEl);                              // 1. title
+    container.appendChild(datesEl);                              // 2. dates
+    container.appendChild(psSelectorEl);                         // 3. section pills
+    if (checklistEl) container.appendChild(checklistEl);         // 4. checkpoints
+    if (reminderEl) container.appendChild(reminderEl);           // 5. task reminder
+
+    // 6. Task sections (always last)
     (template.taskSections || []).forEach((ts, tsIdx) => {
       const group = document.createElement('div');
       group.className = 'detail-section-group';
@@ -513,10 +558,10 @@ const Dashboard = (() => {
             modChev.classList.toggle('open', !collapsed);
           });
           modGroup.appendChild(modHd);
-          (tm.fields || []).forEach(field => modGroup.appendChild(_buildPreviewField(field)));
+          (tm.fields || []).forEach(field => { const fe = _buildPreviewField(field); if (fe) modGroup.appendChild(fe); });
           group.appendChild(modGroup);
         } else {
-          (tm.fields || []).forEach(field => group.appendChild(_buildPreviewField(field)));
+          (tm.fields || []).forEach(field => { const fe = _buildPreviewField(field); if (fe) group.appendChild(fe); });
         }
       });
 
@@ -525,58 +570,145 @@ const Dashboard = (() => {
   }
 
   function _buildPreviewField(field) {
+    if (!field.name) return null;
+
     const row = document.createElement('div');
     row.className = 'detail-field';
 
     const label = document.createElement('div');
     label.className = 'detail-field-label';
-    label.textContent = field.hideLabel ? '' : (field.name || '');
+    label.textContent = field.hideLabel ? '' : field.name;
     row.appendChild(label);
 
     const value = document.createElement('div');
-    value.className = 'detail-field-value readonly';
+    value.className = 'detail-field-value';
+
+    if (!field.type) {
+      row.appendChild(value);
+      return row;
+    }
 
     if (field.type === 'toggle') {
       const opts = (field.toggleOptions && field.toggleOptions.length)
         ? field.toggleOptions
         : [{ label: 'No' }, { label: 'Yes' }];
-      const toggleEl = document.createElement('div');
-      toggleEl.className = 'detail-toggle';
-      toggleEl.style.pointerEvents = 'none';
+      const tEl = document.createElement('div');
+      tEl.className = 'detail-toggle';
+      let activeIdx = _demoState[field.id] !== undefined ? _demoState[field.id] : 0;
       opts.forEach((opt, i) => {
         const btn = document.createElement('button');
-        btn.className = 'detail-toggle-btn' + (i === 0 ? ' active' : '');
-        btn.textContent = opt.label;
-        toggleEl.appendChild(btn);
-      });
-      value.appendChild(toggleEl);
-    } else {
-      const text = document.createElement('span');
-      text.className = 'detail-field-text placeholder';
-      const placeholder = _placeholderForType(field.type, field);
-      if (field.type === 'textarea') {
-        placeholder.split('\n').forEach((line, i) => {
-          if (i > 0) text.appendChild(document.createElement('br'));
-          text.appendChild(document.createTextNode(line));
+        btn.className = 'detail-toggle-btn' + (i === activeIdx ? ' active' : '');
+        btn.textContent = opt.label || '—';
+        btn.addEventListener('click', () => {
+          activeIdx = i;
+          _demoState[field.id] = i;
+          tEl.querySelectorAll('.detail-toggle-btn').forEach((b, bi) => b.classList.toggle('active', bi === i));
         });
-      } else {
-        text.textContent = placeholder;
+        tEl.appendChild(btn);
+      });
+      value.appendChild(tEl);
+    } else if (field.type === 'dropdown') {
+      const opts = (field.dropdownOptions && field.dropdownOptions.length)
+        ? field.dropdownOptions
+        : [{ label: 'Option 1', value: 'option-1' }, { label: 'Option 2', value: 'option-2' }, { label: 'Option 3', value: 'option-3' }];
+      const sel = document.createElement('select');
+      sel.className = 'demo-preview-select';
+      const def = document.createElement('option');
+      def.value = ''; def.textContent = '— select —';
+      sel.appendChild(def);
+      opts.forEach(opt => {
+        const o = document.createElement('option');
+        o.value = opt.value || opt.label;
+        o.textContent = opt.label;
+        sel.appendChild(o);
+      });
+      if (_demoState[field.id]) sel.value = _demoState[field.id];
+      sel.addEventListener('change', () => { _demoState[field.id] = sel.value; });
+      value.appendChild(sel);
+    } else if (field.type === 'time-select' || field.type === 'time-select-na') {
+      const sel = document.createElement('select');
+      sel.className = 'demo-preview-select';
+      const def = document.createElement('option');
+      def.value = ''; def.textContent = '— time —';
+      sel.appendChild(def);
+      if (field.type === 'time-select-na') {
+        const na = document.createElement('option');
+        na.value = 'N/A'; na.textContent = 'N/A';
+        sel.appendChild(na);
       }
-      value.appendChild(text);
+      for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 15) {
+          const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+          const o = document.createElement('option');
+          o.value = t; o.textContent = t;
+          sel.appendChild(o);
+        }
+      }
+      if (_demoState[field.id]) sel.value = _demoState[field.id];
+      sel.addEventListener('change', () => { _demoState[field.id] = sel.value; });
+      value.appendChild(sel);
+    } else if (field.type === 'date') {
+      const inp = document.createElement('input');
+      inp.type = 'date';
+      inp.className = 'demo-preview-date';
+      if (_demoState[field.id]) inp.value = _demoState[field.id];
+      inp.addEventListener('change', () => { _demoState[field.id] = inp.value; });
+      value.appendChild(inp);
+    } else if (field.type === 'textarea') {
+      const ta = document.createElement('textarea');
+      ta.className = 'demo-preview-textarea';
+      ta.rows = 3;
+      ta.placeholder = 'Some text\nText underneath\nText text underneath text';
+      ta.value = _demoState[field.id] !== undefined ? _demoState[field.id] : '';
+      ta.addEventListener('input', () => { _demoState[field.id] = ta.value; });
+      value.appendChild(ta);
+    } else if (field.type === 'link') {
+      const linkWrap = document.createElement('span');
+      if (_demoState[field.id]) {
+        const a = document.createElement('a');
+        a.href = '#'; a.className = 'demo-preview-link';
+        a.textContent = _demoState[field.id];
+        a.addEventListener('click', e => e.preventDefault());
+        linkWrap.appendChild(a);
+      } else {
+        const addBtn = document.createElement('button');
+        addBtn.className = 'demo-preview-link-add';
+        addBtn.textContent = '+ add link';
+        addBtn.addEventListener('click', () => {
+          const url = window.prompt('Link URL:');
+          if (url && url.trim()) { _demoState[field.id] = url.trim(); if (_refreshEditorPreview) _refreshEditorPreview(); }
+        });
+        linkWrap.appendChild(addBtn);
+      }
+      value.appendChild(linkWrap);
+    } else if (field.type === 'auto') {
+      const autoEl = document.createElement('span');
+      autoEl.className = 'detail-field-text';
+      autoEl.style.color = 'var(--text-secondary)';
+      autoEl.style.fontStyle = 'italic';
+      autoEl.textContent = 'Demo Task';
+      value.appendChild(autoEl);
+    } else {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'demo-preview-input';
+      inp.placeholder = 'Anne Smith';
+      inp.value = _demoState[field.id] !== undefined ? _demoState[field.id] : '';
+      inp.addEventListener('input', () => { _demoState[field.id] = inp.value; });
+      value.appendChild(inp);
     }
 
     row.appendChild(value);
     return row;
   }
-
   function _placeholderForType(type, field) {
     switch (type) {
-      case 'text':           return 'e.g. Badehaus, Berlin';
-      case 'textarea':       return 'e.g. Fee: €2,500\n+ Travel\n+ Hotel';
+      case 'text':           return 'Anne Smith';
+      case 'textarea':       return 'Some text\nText underneath\nText text underneath text';
       case 'link':           return '+ add link';
-      case 'date':           return 'e.g. 28 Jun 2026';
-      case 'time-select':    return 'e.g. 20:00';
-      case 'time-select-na': return 'e.g. 20:00';
+      case 'date':           return '15 Aug 2026';
+      case 'time-select':    return '20:00';
+      case 'time-select-na': return '20:00';
       case 'auto':           return 'Auto-filled from task';
       case 'catering-select':    return 'e.g. Dinner for 4';
       case 'show-length-select': return 'e.g. 90 min';
@@ -618,8 +750,14 @@ const Dashboard = (() => {
     _previewEl = null;
     _previewTemplateId = 'editor'; // ensures clearTimers() hides the panel on back/save/cancel
 
+    let _editorInitialized = false;
+    const topActions = document.createElement('div');
+    topActions.className = 'editor-actions editor-actions--top';
+    topActions.style.display = 'none';
+
     _refreshEditorPreview = function() {
       _renderTemplatePreviewInPanel(_draft);
+      if (_editorInitialized) topActions.style.display = '';
     };
     _refreshEditorPreview();
 
@@ -656,6 +794,18 @@ const Dashboard = (() => {
     nameRow.appendChild(nameInput);
     wrap.appendChild(nameRow);
 
+    const topSaveBtn = document.createElement('button');
+    topSaveBtn.className = 'dash-btn-primary';
+    topSaveBtn.textContent = 'Save Template';
+    topSaveBtn.addEventListener('click', _save);
+    const topCancelBtn = document.createElement('button');
+    topCancelBtn.className = 'dash-btn-secondary';
+    topCancelBtn.textContent = 'Cancel';
+    topCancelBtn.addEventListener('click', () => { _draft = null; _editingId = null; render(); });
+    topActions.appendChild(topSaveBtn);
+    topActions.appendChild(topCancelBtn);
+    wrap.appendChild(topActions);
+
     // ── Project Sections ───────────────────────────────────────────────────
 
     const psHeader = document.createElement('div');
@@ -679,7 +829,8 @@ const Dashboard = (() => {
         psList.appendChild(_buildPS(ps, idx, rerenderPs));
       });
       const psAddBtn = _addBtn('+ Add Section', () => {
-        _draft.projectSections.push({ id: Utils.generateId(), name: '' });
+        const newPs = { id: Utils.generateId(), name: '' };
+        _draft.projectSections.push(newPs);
         rerenderPs();
         setTimeout(() => {
           const inputs = psList.querySelectorAll('.editor-ps-name');
@@ -738,12 +889,10 @@ const Dashboard = (() => {
         tsList.appendChild(_buildTS(ts, idx, rerenderTs));
       });
       const addBtn = _addBtn('+ Add Task Section', () => {
-        _draft.taskSections.push({
-          id: Utils.generateId(),
-          name: '',
-          modules: [{ id: Utils.generateId(), name: '', defaultOpen: true, fields: [] }]
-        });
+        const newTs = { id: Utils.generateId(), name: '', modules: [{ id: Utils.generateId(), name: '', defaultOpen: true, fields: [] }] };
+        _draft.taskSections.push(newTs);
         rerenderTs();
+        setTimeout(() => { const ins = tsList.querySelectorAll('.editor-ts-name'); if (ins.length) ins[ins.length - 1].focus(); }, 10);
       });
       tsList.appendChild(addBtn);
       if (_refreshEditorPreview) _refreshEditorPreview();
@@ -770,6 +919,7 @@ const Dashboard = (() => {
 
     // Focus template name if empty (new template)
     if (!_draft.name) setTimeout(() => nameInput.focus(), 0);
+    setTimeout(() => { _editorInitialized = true; }, 0);
   }
 
   // ── Deep-clone helpers (new IDs at every level) ───────────────────────────
@@ -808,7 +958,11 @@ const Dashboard = (() => {
     nameInput.type = 'text';
     nameInput.value = ps.name;
     nameInput.placeholder = 'Section name (e.g. To Do, In Progress, Done)';
-    nameInput.addEventListener('input', () => { ps.name = nameInput.value; });
+    nameInput.addEventListener('input', () => {
+      ps.name = nameInput.value;
+      if (_refreshEditorPreview) _refreshEditorPreview();
+    });
+    _applyDeleteOnBlur(nameInput, () => { _draft.projectSections.splice(idx, 1); rerender(); });
 
     const ctrls = _controls(
       idx,
@@ -841,6 +995,7 @@ const Dashboard = (() => {
       ts.name = nameInput.value;
       if (_refreshEditorPreview) _refreshEditorPreview();
     });
+    _applyDeleteOnBlur(nameInput, () => { _draft.taskSections.splice(tsIdx, 1); rerender(); });
 
     const ctrls = _controls(
       tsIdx,
@@ -866,8 +1021,10 @@ const Dashboard = (() => {
         tmList.appendChild(_buildTM(tm, tmIdx, ts, rerenderTm));
       });
       const addBtn = _addBtn('+ Add Task Module', () => {
-        ts.modules.push({ id: Utils.generateId(), name: '', defaultOpen: false, fields: [] });
+        const newTm = { id: Utils.generateId(), name: '', defaultOpen: false, fields: [] };
+        ts.modules.push(newTm);
         rerenderTm();
+        setTimeout(() => { const ins = tmList.querySelectorAll('.editor-tm-name'); if (ins.length) ins[ins.length - 1].focus(); }, 10);
       }, 'editor-add-btn--sm');
       tmList.appendChild(addBtn);
       if (_refreshEditorPreview) _refreshEditorPreview();
@@ -895,6 +1052,7 @@ const Dashboard = (() => {
       tm.name = nameInput.value;
       if (_refreshEditorPreview) _refreshEditorPreview();
     });
+    _applyDeleteOnBlur(nameInput, () => { ts.modules.splice(tmIdx, 1); rerender(); });
 
     const ctrls = _controls(
       tmIdx,
@@ -920,8 +1078,10 @@ const Dashboard = (() => {
         tlList.appendChild(_buildTL(field, tlIdx, tm, rerenderTl));
       });
       const addBtn = _addBtn('+ Add Task Label', () => {
-        tm.fields.push({ id: Utils.generateId(), name: '', type: 'text' });
+        const newField = { id: Utils.generateId(), name: '', type: null };
+        tm.fields.push(newField);
         rerenderTl();
+        setTimeout(() => { const ins = tlList.querySelectorAll('.editor-tl-name'); if (ins.length) ins[ins.length - 1].focus(); }, 10);
       }, 'editor-add-btn--xs');
       tlList.appendChild(addBtn);
       if (_refreshEditorPreview) _refreshEditorPreview();
@@ -949,23 +1109,145 @@ const Dashboard = (() => {
       field.name = nameInput.value;
       if (_refreshEditorPreview) _refreshEditorPreview();
     });
+    _applyDeleteOnBlur(nameInput, () => { tm.fields.splice(tlIdx, 1); rerender(); });
+    nameInput.addEventListener('blur', () => {
+      if (nameInput.value.trim() && !field.type) rerender();
+    });
 
-    const typeSelect = document.createElement('select');
-    typeSelect.className = 'editor-tl-type';
+    main.appendChild(nameInput);
+
+    if (field.name.trim()) {
+      const typeSelectWrap = _buildTypeSelect(field, rerender);
+      const ctrls = _controls(
+        tlIdx,
+        tm.fields.length,
+        () => { tm.fields.splice(tlIdx - 1, 0, tm.fields.splice(tlIdx, 1)[0]); rerender(); },
+        () => { tm.fields.splice(tlIdx + 1, 0, tm.fields.splice(tlIdx, 1)[0]); rerender(); },
+        () => { tm.fields.splice(tlIdx, 1); rerender(); },
+        () => { tm.fields.splice(tlIdx + 1, 0, _cloneField(field)); rerender(); }
+      );
+      main.appendChild(typeSelectWrap);
+      main.appendChild(ctrls);
+    }
+
+    row.appendChild(main);
+
+    if (field.name.trim()) {
+      if (field.type === 'toggle')   row.appendChild(_buildToggleOpts(field, rerender));
+      if (field.type === 'dropdown') row.appendChild(_buildDropdownOpts(field, rerender));
+      if (field.type === 'auto')     row.appendChild(_buildAutoSource(field));
+    }
+
+    return row;
+  }
+
+  function _buildTypeSelect(field, rerender) {
+    const currentFt = field.type ? (FIELD_TYPES.find(ft => ft.value === field.type) || null) : null;
+    const wrap = document.createElement('div');
+    wrap.className = 'editor-tl-type-wrap';
+
+    const btn = document.createElement('button');
+    btn.className = 'editor-tl-type-btn';
+    btn.type = 'button';
+    if (currentFt) {
+      btn.textContent = currentFt.label;
+    } else {
+      btn.textContent = 'Choose label format';
+      btn.style.color = 'var(--text-secondary)';
+    }
+
+    const panel = document.createElement('div');
+    panel.className = 'editor-tl-type-panel hidden';
+
+    const list = document.createElement('div');
+    list.className = 'editor-tl-type-list';
+
+    const preview = document.createElement('div');
+    preview.className = 'editor-tl-type-preview';
+
     FIELD_TYPES.forEach(ft => {
-      const opt = document.createElement('option');
-      opt.value = ft.value;
-      opt.textContent = ft.label;
-      if (ft.value === (field.type || 'text')) opt.selected = true;
-      typeSelect.appendChild(opt);
+      const item = document.createElement('div');
+      item.className = 'editor-tl-type-item' + (ft.value === field.type ? ' selected' : '');
+      item.textContent = ft.label;
+
+      item.addEventListener('mouseenter', () => {
+        preview.innerHTML = '';
+        _buildTypePreviewContent(ft.value, field).forEach(el => preview.appendChild(el));
+      });
+
+      item.addEventListener('mousedown', e => e.preventDefault());
+
+      item.addEventListener('click', () => {
+        field.type = ft.value;
+        if (field.type !== 'toggle')   delete field.toggleOptions;
+        if (field.type !== 'dropdown') delete field.dropdownOptions;
+        if (field.type !== 'auto')     delete field.autoSource;
+        btn.textContent = ft.label;
+        btn.style.color = '';
+        panel.classList.add('hidden');
+        panelOpen = false;
+        if (outsideHandler) { document.removeEventListener('mousedown', outsideHandler, true); outsideHandler = null; }
+        rerender();
+      });
+
+      list.appendChild(item);
     });
-    typeSelect.addEventListener('change', () => {
-      field.type = typeSelect.value;
-      if (field.type !== 'toggle')   delete field.toggleOptions;
-      if (field.type !== 'dropdown') delete field.dropdownOptions;
-      if (field.type !== 'auto')     delete field.autoSource;
-      rerender();
+
+    panel.appendChild(list);
+    panel.appendChild(preview);
+    wrap.appendChild(btn);
+    wrap.appendChild(panel);
+
+    let panelOpen = false;
+    let outsideHandler = null;
+
+    btn.addEventListener('click', () => {
+      if (panelOpen) {
+        panel.classList.add('hidden');
+        panelOpen = false;
+        if (outsideHandler) { document.removeEventListener('mousedown', outsideHandler, true); outsideHandler = null; }
+      } else {
+        panelOpen = true;
+        panel.classList.remove('hidden');
+        preview.innerHTML = '';
+        if (field.type) {
+          _buildTypePreviewContent(field.type, field).forEach(el => preview.appendChild(el));
+        }
+        outsideHandler = (e) => {
+          if (!wrap.contains(e.target)) {
+            panel.classList.add('hidden');
+            panelOpen = false;
+            document.removeEventListener('mousedown', outsideHandler, true);
+            outsideHandler = null;
+          }
+        };
+        setTimeout(() => document.addEventListener('mousedown', outsideHandler, true), 0);
+      }
     });
+
+    return wrap;
+  }
+  // ── TL builder ────────────────────────────────────────────────────────────
+
+  function _buildTL(field, tlIdx, tm, rerender) {
+    const row = document.createElement('div');
+    row.className = 'editor-tl-row';
+
+    const main = document.createElement('div');
+    main.className = 'editor-tl-main';
+
+    const nameInput = document.createElement('input');
+    nameInput.className = 'editor-tl-name';
+    nameInput.type = 'text';
+    nameInput.value = field.name;
+    nameInput.placeholder = 'Task Label name (e.g. CAPACITY)';
+    nameInput.addEventListener('input', () => {
+      field.name = nameInput.value;
+      if (_refreshEditorPreview) _refreshEditorPreview();
+    });
+    _applyDeleteOnBlur(nameInput, () => { tm.fields.splice(tlIdx, 1); rerender(); });
+
+    const typeSelectWrap = _buildTypeSelect(field, rerender);
 
     const ctrls = _controls(
       tlIdx,
@@ -977,7 +1259,7 @@ const Dashboard = (() => {
     );
 
     main.appendChild(nameInput);
-    main.appendChild(typeSelect);
+    main.appendChild(typeSelectWrap);
     main.appendChild(ctrls);
     row.appendChild(main);
 
@@ -986,6 +1268,172 @@ const Dashboard = (() => {
     if (field.type === 'auto')     row.appendChild(_buildAutoSource(field));
 
     return row;
+  }
+
+  function _buildTypeSelect(field, rerender) {
+    const currentFt = FIELD_TYPES.find(ft => ft.value === (field.type || 'text')) || FIELD_TYPES[0];
+    const wrap = document.createElement('div');
+    wrap.className = 'editor-tl-type-wrap';
+
+    const btn = document.createElement('button');
+    btn.className = 'editor-tl-type-btn';
+    btn.type = 'button';
+    btn.textContent = currentFt.label;
+
+    const panel = document.createElement('div');
+    panel.className = 'editor-tl-type-panel hidden';
+
+    const list = document.createElement('div');
+    list.className = 'editor-tl-type-list';
+
+    const preview = document.createElement('div');
+    preview.className = 'editor-tl-type-preview';
+
+    FIELD_TYPES.forEach(ft => {
+      const item = document.createElement('div');
+      item.className = 'editor-tl-type-item' + (ft.value === (field.type || 'text') ? ' selected' : '');
+      item.textContent = ft.label;
+
+      item.addEventListener('mouseenter', () => {
+        preview.innerHTML = '';
+        _buildTypePreviewContent(ft.value, field).forEach(el => preview.appendChild(el));
+      });
+
+      item.addEventListener('mousedown', e => e.preventDefault());
+
+      item.addEventListener('click', () => {
+        field.type = ft.value;
+        if (field.type !== 'toggle')   delete field.toggleOptions;
+        if (field.type !== 'dropdown') delete field.dropdownOptions;
+        if (field.type !== 'auto')     delete field.autoSource;
+        btn.textContent = ft.label;
+        panel.classList.add('hidden');
+        panelOpen = false;
+        if (outsideHandler) { document.removeEventListener('mousedown', outsideHandler, true); outsideHandler = null; }
+        rerender();
+      });
+
+      list.appendChild(item);
+    });
+
+    panel.appendChild(list);
+    panel.appendChild(preview);
+    wrap.appendChild(btn);
+    wrap.appendChild(panel);
+
+    let panelOpen = false;
+    let outsideHandler = null;
+
+    btn.addEventListener('click', () => {
+      if (panelOpen) {
+        panel.classList.add('hidden');
+        panelOpen = false;
+        if (outsideHandler) { document.removeEventListener('mousedown', outsideHandler, true); outsideHandler = null; }
+      } else {
+        panelOpen = true;
+        panel.classList.remove('hidden');
+        preview.innerHTML = '';
+        _buildTypePreviewContent(field.type || 'text', field).forEach(el => preview.appendChild(el));
+        outsideHandler = (e) => {
+          if (!wrap.contains(e.target)) {
+            panel.classList.add('hidden');
+            panelOpen = false;
+            document.removeEventListener('mousedown', outsideHandler, true);
+            outsideHandler = null;
+          }
+        };
+        setTimeout(() => document.addEventListener('mousedown', outsideHandler, true), 0);
+      }
+    });
+
+    return wrap;
+  }
+
+  function _buildTypePreviewContent(type, field) {
+    const els = [];
+    switch (type) {
+      case 'text': {
+        const s = document.createElement('span');
+        s.className = 'detail-field-text placeholder';
+        s.textContent = 'Anne Smith';
+        els.push(s); break;
+      }
+      case 'textarea': {
+        const s = document.createElement('span');
+        s.className = 'detail-field-text placeholder';
+        ['Some text', 'Text underneath', 'Text text underneath text'].forEach((line, i) => {
+          if (i > 0) s.appendChild(document.createElement('br'));
+          s.appendChild(document.createTextNode(line));
+        });
+        els.push(s); break;
+      }
+      case 'toggle': {
+        const opts = (field.toggleOptions && field.toggleOptions.length) ? field.toggleOptions : [{ label: 'No' }, { label: 'Yes' }];
+        const tEl = document.createElement('div');
+        tEl.className = 'detail-toggle';
+        tEl.style.pointerEvents = 'none';
+        opts.forEach((opt, i) => {
+          const b = document.createElement('button');
+          b.className = 'detail-toggle-btn' + (i === 0 ? ' active' : '');
+          b.textContent = opt.label || '—';
+          tEl.appendChild(b);
+        });
+        els.push(tEl); break;
+      }
+      case 'dropdown': {
+        const opts = (field.dropdownOptions && field.dropdownOptions.length) ? field.dropdownOptions
+          : [{ label: 'Option 1' }, { label: 'Option 2' }, { label: 'Option 3' }, { label: 'Option 4' }, { label: 'Option 5' }];
+        const dl = document.createElement('div');
+        dl.className = 'preview-dropdown-list';
+        dl.style.pointerEvents = 'none';
+        opts.slice(0, 5).forEach((opt, i) => {
+          const item = document.createElement('div');
+          item.className = 'preview-dd-item' + (i === 0 ? ' selected' : '');
+          item.textContent = opt.label || `Option ${i + 1}`;
+          dl.appendChild(item);
+        });
+        els.push(dl); break;
+      }
+      case 'link': {
+        const s = document.createElement('span');
+        s.className = 'detail-field-text';
+        s.style.color = 'var(--accent-blue)';
+        s.style.textDecoration = 'underline';
+        s.textContent = 'www.yourlink.com';
+        els.push(s); break;
+      }
+      case 'date': {
+        const s = document.createElement('span');
+        s.className = 'detail-field-text placeholder';
+        s.textContent = '15 Aug 2026';
+        els.push(s); break;
+      }
+      case 'time-select':
+      case 'time-select-na':
+      case 'show-time': {
+        const s = document.createElement('span');
+        s.className = 'detail-field-text placeholder';
+        s.textContent = '20:00';
+        els.push(s); break;
+      }
+      case 'auto': {
+        const s = document.createElement('span');
+        s.className = 'detail-field-text placeholder';
+        s.style.fontStyle = 'italic';
+        s.textContent = 'Demo Task';
+        const desc = document.createElement('p');
+        desc.style.cssText = 'margin:8px 0 0;font-size:11px;color:var(--text-secondary);line-height:1.4;';
+        desc.textContent = 'Automatically displays the task name. Read-only.';
+        els.push(s); els.push(desc); break;
+      }
+      default: {
+        const s = document.createElement('span');
+        s.className = 'detail-field-text placeholder';
+        s.textContent = '—';
+        els.push(s); break;
+      }
+    }
+    return els;
   }
 
   function _buildToggleOpts(field, rerender) {
@@ -1003,12 +1451,12 @@ const Dashboard = (() => {
     field.toggleOptions.forEach((opt, i) => {
       const optRow = document.createElement('div');
       optRow.className = 'editor-opt-row';
-
-      const valIn = _miniInput(opt.value, 'value (stored)', v => { opt.value = v; if (_refreshEditorPreview) _refreshEditorPreview(); });
-      const lblIn = _miniInput(opt.label, 'label (displayed)', v => { opt.label = v; if (_refreshEditorPreview) _refreshEditorPreview(); });
+      const lblIn = _miniInput(opt.label, 'Option label', v => {
+        opt.label = v;
+        opt.value = v.toLowerCase().trim() || opt.value;
+        if (_refreshEditorPreview) _refreshEditorPreview();
+      }, () => { field.toggleOptions.splice(i, 1); rerender(); });
       const rm = _removeBtn(() => { field.toggleOptions.splice(i, 1); rerender(); });
-
-      optRow.appendChild(valIn);
       optRow.appendChild(lblIn);
       optRow.appendChild(rm);
       wrap.appendChild(optRow);
@@ -1037,10 +1485,12 @@ const Dashboard = (() => {
     field.dropdownOptions.forEach((opt, i) => {
       const optRow = document.createElement('div');
       optRow.className = 'editor-opt-row';
-      const valIn  = _miniInput(opt.value, 'value (stored)', v => { opt.value = v; if (_refreshEditorPreview) _refreshEditorPreview(); });
-      const lblIn  = _miniInput(opt.label, 'label (displayed)', v => { opt.label = v; if (_refreshEditorPreview) _refreshEditorPreview(); });
-      const rm     = _removeBtn(() => { field.dropdownOptions.splice(i, 1); rerender(); });
-      optRow.appendChild(valIn);
+      const lblIn = _miniInput(opt.label, 'Option label', v => {
+        opt.label = v;
+        opt.value = v.toLowerCase().trim() || opt.value;
+        if (_refreshEditorPreview) _refreshEditorPreview();
+      }, () => { field.dropdownOptions.splice(i, 1); rerender(); });
+      const rm = _removeBtn(() => { field.dropdownOptions.splice(i, 1); rerender(); });
       optRow.appendChild(lblIn);
       optRow.appendChild(rm);
       wrap.appendChild(optRow);
@@ -1115,13 +1565,24 @@ const Dashboard = (() => {
     return btn;
   }
 
-  function _miniInput(val, placeholder, onChange) {
+  // Shared: Enter commits (blurs), empty blur = delete
+  function _applyDeleteOnBlur(input, onDelete) {
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    });
+    input.addEventListener('blur', () => {
+      if (!input.value.trim()) onDelete();
+    });
+  }
+
+  function _miniInput(val, placeholder, onChange, onDelete) {
     const input = document.createElement('input');
     input.className = 'editor-mini-input';
     input.type = 'text';
     input.value = val;
     input.placeholder = placeholder;
     input.addEventListener('input', () => onChange(input.value));
+    if (onDelete) _applyDeleteOnBlur(input, onDelete);
     return input;
   }
 
@@ -1182,6 +1643,7 @@ const Dashboard = (() => {
             item.name = nameInput.value;
             if (_refreshEditorPreview) _refreshEditorPreview();
           });
+          _applyDeleteOnBlur(nameInput, () => { rem.items.splice(idx, 1); rerenderItems(); });
 
           const ctrls = _controls(
             idx, rem.items.length,
@@ -1197,7 +1659,8 @@ const Dashboard = (() => {
 
         const addBtn = _addBtn('+ Add Reminder', () => {
           if (!rem.items) rem.items = [];
-          rem.items.push({ id: Utils.generateId(), name: '' });
+          const newItem = { id: Utils.generateId(), name: '' };
+          rem.items.push(newItem);
           rerenderItems();
           setTimeout(() => {
             const inputs = itemsList.querySelectorAll('.editor-ps-name');
@@ -1489,5 +1952,21 @@ const Dashboard = (() => {
     }
   }
 
-  return { render, clearTimers };
+  function _autoSave() {
+    if (_draft === null) return;
+    if (!_draft.name || !_draft.name.trim()) _draft.name = 'Untitled Template';
+    const tmpl = JSON.parse(JSON.stringify(_draft));
+    tmpl.name = tmpl.name.trim();
+    if (_isNewDefault) { tmpl.isDefault = true; }
+    _isNewDefault = false;
+    if (_editingId) {
+      DataLayer.updateTemplate(_editingId, tmpl);
+    } else {
+      DataLayer.addTemplate(tmpl);
+    }
+    _draft = null;
+    _editingId = null;
+  }
+
+  return { render, clearTimers, autoSave: _autoSave };
 })();

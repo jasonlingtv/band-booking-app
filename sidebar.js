@@ -140,17 +140,14 @@ const Sidebar = (() => {
       _hideIndicator();
     });
 
+    const hasActiveProject = team.projects.some(p => p.id === activeProjectId);
+
     // Header
     const header = document.createElement('div');
     header.className = 'team-header';
-    header.addEventListener('click', (e) => {
-      if (e.target.closest('.team-menu-btn') || e.target.closest('.team-add-btn')) return;
-      DataLayer.updateTeam(team.id, { collapsed: !team.collapsed });
-      render();
-    });
 
     const chevron = document.createElement('span');
-    chevron.className = 'team-chevron' + (team.collapsed ? '' : ' open');
+    chevron.className = 'team-chevron' + (hasActiveProject ? ' open' : '');
     chevron.textContent = '›';
 
     const nameEl = document.createElement('span');
@@ -195,46 +192,73 @@ const Sidebar = (() => {
     header.appendChild(menuBtn);
     wrapper.appendChild(header);
 
-    // Projects
-    if (!team.collapsed) {
-      const projectsEl = document.createElement('div');
-      projectsEl.className = 'team-projects';
+    // Projects — always built; visibility driven by hover or active-project state
+    const projectsEl = document.createElement('div');
+    projectsEl.className = 'team-projects';
+    if (hasActiveProject) projectsEl.classList.add('expanded');
 
-      // Container-level drag handlers for PROJECT reordering within this team
-      projectsEl.addEventListener('dragover', (e) => {
-        if (_dragType !== 'project' || _dragTeamId !== team.id) return;
-        e.preventDefault();
-        const items = Array.from(projectsEl.querySelectorAll('.project-item:not(.dragging)'));
-        const beforeEl = _getInsertBefore(e, items);
-        _dropBeforeId = beforeEl ? beforeEl.dataset.projectId : null;
-        _showIndicator(projectsEl, beforeEl);
-      });
+    // Container-level drag handlers for PROJECT reordering within this team
+    projectsEl.addEventListener('dragover', (e) => {
+      if (_dragType !== 'project' || _dragTeamId !== team.id) return;
+      e.preventDefault();
+      const items = Array.from(projectsEl.querySelectorAll('.project-item:not(.dragging)'));
+      const beforeEl = _getInsertBefore(e, items);
+      _dropBeforeId = beforeEl ? beforeEl.dataset.projectId : null;
+      _showIndicator(projectsEl, beforeEl);
+    });
 
-      projectsEl.addEventListener('dragleave', (e) => {
-        if (_dragType !== 'project' || _dragTeamId !== team.id) return;
-        if (!projectsEl.contains(e.relatedTarget)) _hideIndicator();
-      });
+    projectsEl.addEventListener('dragleave', (e) => {
+      if (_dragType !== 'project' || _dragTeamId !== team.id) return;
+      if (!projectsEl.contains(e.relatedTarget)) _hideIndicator();
+    });
 
-      projectsEl.addEventListener('drop', (e) => {
-        if (_dragType !== 'project' || _dragTeamId !== team.id) return;
-        e.preventDefault();
-        _hideIndicator();
-        const projects = team.projects;
-        const fromIdx = projects.findIndex(p => p.id === _dragId);
-        const beforeIdx = _dropBeforeId ? projects.findIndex(p => p.id === _dropBeforeId) : -1;
-        const toIdx = _computeToIdx(fromIdx, beforeIdx, projects.length);
-        _dropBeforeId = null;
-        if (fromIdx !== toIdx && toIdx >= 0) {
-          DataLayer.reorderProjects(team.id, fromIdx, toIdx);
-          render();
-        }
-      });
+    projectsEl.addEventListener('drop', (e) => {
+      if (_dragType !== 'project' || _dragTeamId !== team.id) return;
+      e.preventDefault();
+      _hideIndicator();
+      const projects = team.projects;
+      const fromIdx = projects.findIndex(p => p.id === _dragId);
+      const beforeIdx = _dropBeforeId ? projects.findIndex(p => p.id === _dropBeforeId) : -1;
+      const toIdx = _computeToIdx(fromIdx, beforeIdx, projects.length);
+      _dropBeforeId = null;
+      if (fromIdx !== toIdx && toIdx >= 0) {
+        DataLayer.reorderProjects(team.id, fromIdx, toIdx);
+        render();
+      }
+    });
 
-      team.projects.forEach(project => {
-        projectsEl.appendChild(_renderProject(project, team, activeProjectId));
-      });
-      wrapper.appendChild(projectsEl);
+    team.projects.forEach(project => {
+      projectsEl.appendChild(_renderProject(project, team, activeProjectId));
+    });
+    wrapper.appendChild(projectsEl);
+
+    // Hover expand/collapse — per-team timers
+    let expandTimer  = null;
+    let collapseTimer = null;
+
+    function expand() {
+      chevron.classList.add('open');
+      projectsEl.classList.add('expanded');
     }
+
+    function collapse() {
+      if (team.projects.some(p => p.id === DataLayer.getActiveProjectId())) return;
+      chevron.classList.remove('open');
+      projectsEl.classList.remove('expanded');
+    }
+
+    wrapper.addEventListener('mouseenter', () => {
+      if (_dragType) return;
+      clearTimeout(collapseTimer); collapseTimer = null;
+      clearTimeout(expandTimer);
+      expandTimer = setTimeout(expand, 150);
+    });
+
+    wrapper.addEventListener('mouseleave', () => {
+      clearTimeout(expandTimer); expandTimer = null;
+      clearTimeout(collapseTimer);
+      collapseTimer = setTimeout(collapse, 150);
+    });
 
     return wrapper;
   }
@@ -265,7 +289,7 @@ const Sidebar = (() => {
 
     const icon = document.createElement('span');
     icon.className = 'project-icon';
-    icon.textContent = '📋';
+    icon.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.1"/><line x1="3.5" y1="4.5" x2="8.5" y2="4.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><line x1="3.5" y1="6.5" x2="8.5" y2="6.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><line x1="3.5" y1="8.5" x2="6.5" y2="8.5" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>';
 
     const name = document.createElement('span');
     name.className = 'project-name';
@@ -299,6 +323,7 @@ const Sidebar = (() => {
 
     el.addEventListener('click', (e) => {
       if (e.target.closest('.project-menu-btn')) return;
+      if (typeof Dashboard !== 'undefined') Dashboard.autoSave();
       DataLayer.setActiveProjectId(project.id);
       Utils.EventBus.emit('project:changed');
       render();
@@ -307,5 +332,5 @@ const Sidebar = (() => {
     return el;
   }
 
-  return { render };
+  return { render, addProjectFlow: _addProjectFlow };
 })();
