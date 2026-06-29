@@ -5,7 +5,7 @@ const Dashboard = (() => {
   let _draft = null;        // deep clone of template being edited; null when on list view
   let _editingId = null;    // id of template being edited; null for a new template
   let _isNewDefault = false; // true when creating a new default template
-  let _dashTab = 'templates'; // 'templates' | 'todo' | 'news'
+  let _dashTab = 'templates'; // 'templates' | 'todo' | 'news' | 'socials'
   let _todoTimer = null;
   let _hoverShowTimer = null;
   let _hoverHideTimer = null;
@@ -77,6 +77,7 @@ const Dashboard = (() => {
     _demoState = {};
     _activeTemplateRow = null;
     if (typeof NewsView !== 'undefined') NewsView.cleanup();
+    if (typeof SocialsView !== 'undefined') SocialsView.cleanup();
   }
 
   const FIELD_TYPES = [
@@ -113,7 +114,7 @@ const Dashboard = (() => {
     // Tab bar
     const tabBar = document.createElement('div');
     tabBar.className = 'dash-tab-bar';
-    [['templates', 'Templates'], ['todo', 'To Do'], ['news', 'News']].forEach(([id, label]) => {
+    [['templates', 'Templates'], ['todo', 'To Do'], ['news', 'News'], ['socials', 'My Socials']].forEach(([id, label]) => {
       const btn = document.createElement('button');
       btn.className = 'dash-tab-btn' + (_dashTab === id ? ' active' : '');
       btn.textContent = label;
@@ -126,6 +127,8 @@ const Dashboard = (() => {
       _renderTodo(el);
     } else if (_dashTab === 'news') {
       NewsView.render(el);
+    } else if (_dashTab === 'socials') {
+      SocialsView.render(el);
     } else {
       _renderList(el);
     }

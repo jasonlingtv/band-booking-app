@@ -3328,3 +3328,89 @@ a:hover { text-decoration: underline; }
   margin-top: 8px;
   margin-bottom: 1px;
 }
+
+/* ── My Socials tab ──────────────────────────────────────────────────────── */
+
+.socials-wrap { max-width: none; }
+
+.socials-section { margin-bottom: 24px; }
+
+/* YouTube connect setup */
+.socials-yt-setup {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 40px 24px 32px; text-align: center;
+}
+.socials-yt-logo-large { margin-bottom: 24px; line-height: 0; }
+.socials-setup-heading { font-size: 18px; font-weight: 600; color: var(--text); margin: 0 0 20px; }
+.socials-input-row { display: flex; gap: 8px; width: 100%; max-width: 520px; margin-bottom: 6px; }
+.socials-channel-input {
+  flex: 1; padding: 8px 12px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 13px; font-family: inherit; background: var(--bg); color: var(--text);
+  transition: border-color 0.15s;
+}
+.socials-channel-input:focus { outline: none; border-color: var(--accent-blue); }
+.socials-status { font-size: 12px; min-height: 18px; margin-bottom: 4px; color: transparent; }
+.socials-status--error { color: #ef4444; }
+.socials-helper { font-size: 12px; color: var(--text-secondary); margin: 0; }
+
+/* YouTube feed section header */
+.socials-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.socials-yt-title-row { display: flex; align-items: center; gap: 10px; }
+.socials-section-name { font-size: 16px; font-weight: 600; color: var(--text); }
+.socials-section-controls { display: flex; align-items: center; gap: 8px; }
+.socials-change-btn {
+  font-size: 12px; color: var(--text-secondary); background: none;
+  border: none; cursor: pointer; padding: 0; text-decoration: underline;
+}
+.socials-change-btn:hover { color: var(--text); }
+.socials-error { font-size: 13px; color: var(--text-secondary); padding: 16px 0; margin: 0; }
+
+/* Video grid — 4 columns */
+.socials-video-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  margin-bottom: 8px;
+}
+.socials-video-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); cursor: pointer; overflow: hidden;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  outline: none;
+}
+.socials-video-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(-2px); }
+.socials-video-card:focus-visible { box-shadow: 0 0 0 2px var(--accent-blue); }
+.socials-video-thumb-wrap {
+  position: relative; padding-bottom: 56.25%; /* 16:9 */
+  background: var(--bg-hover); overflow: hidden;
+}
+.socials-video-thumb {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%; object-fit: cover;
+}
+.socials-video-info { padding: 10px 12px 12px; }
+.socials-video-title {
+  font-size: 13px; font-weight: 500; line-height: 1.45; color: var(--text);
+  margin-bottom: 5px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.socials-video-meta { font-size: 11px; color: var(--text-secondary); }
+
+/* Coming soon */
+.socials-coming-soon { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
+.socials-coming-label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-secondary); margin-bottom: 14px;
+}
+.socials-coming-grid { display: flex; gap: 12px; flex-wrap: wrap; }
+.socials-coming-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 18px; border: 1px solid var(--border); border-radius: var(--radius);
+  opacity: 0.45; min-width: 150px;
+}
+.socials-coming-icon { flex-shrink: 0; display: flex; align-items: center; line-height: 0; }
+.socials-coming-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+.socials-coming-badge { font-size: 11px; color: var(--text-secondary); }
