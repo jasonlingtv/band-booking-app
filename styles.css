@@ -3414,3 +3414,59 @@ a:hover { text-decoration: underline; }
 .socials-coming-icon { flex-shrink: 0; display: flex; align-items: center; line-height: 0; }
 .socials-coming-name { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
 .socials-coming-badge { font-size: 11px; color: var(--text-secondary); }
+
+/* ── News search — article list (Google News) + URL validation ───────────── */
+
+.news-search-helper {
+  font-size: 12px; color: var(--text-secondary); margin: 6px 0 14px; opacity: 0.65;
+}
+.news-search-article-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.news-search-article {
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  transition: background 0.1s;
+}
+.news-search-article:hover { background: var(--bg-hover); }
+.news-search-article-title {
+  display: block; font-size: 13px; font-weight: 500; color: var(--text);
+  text-decoration: none; margin-bottom: 6px; line-height: 1.45;
+}
+.news-search-article-title:hover { text-decoration: underline; color: var(--accent-blue); }
+.news-search-article-meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-secondary);
+}
+.news-search-article-favicon { width: 13px; height: 13px; flex-shrink: 0; }
+.news-search-article-source { font-weight: 500; color: var(--text); }
+.news-search-article-sep { opacity: 0.35; }
+.news-search-article-time { opacity: 0.7; }
+
+/* "+ Add" source button */
+.news-search-add-btn {
+  padding: 2px 7px; font-size: 11px; font-weight: 500; border-radius: 4px;
+  border: 1px solid var(--border); background: none; cursor: pointer;
+  color: var(--text-secondary); transition: background 0.12s, border-color 0.12s, color 0.12s;
+  white-space: nowrap; line-height: 1.6;
+}
+.news-search-add-btn:hover:not(:disabled) {
+  background: var(--accent-blue-bg); border-color: var(--accent-blue); color: var(--accent-blue);
+}
+.news-search-add-btn.following {
+  background: var(--accent-blue-bg); border-color: var(--accent-blue-border);
+  color: var(--accent-blue); cursor: default;
+}
+.news-search-add-btn--error { border-color: #fca5a5; color: #ef4444; cursor: default; }
+
+/* Direct URL validation result card */
+.news-search-url-result {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 14px; border: 1px solid var(--accent-blue-border);
+  border-radius: var(--radius); background: var(--accent-blue-bg); margin-top: 4px;
+}
+.news-search-url-result-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.news-search-url-result-name { font-size: 13px; font-weight: 500; color: var(--text); }
+.news-search-url-result-site { font-size: 12px; color: var(--text-secondary); margin-left: 4px; }
+.news-search-url-error {
+  padding: 14px 16px; font-size: 13px; color: var(--text-secondary);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg-hover); margin-top: 4px; line-height: 1.6;
+}
