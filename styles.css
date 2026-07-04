@@ -2478,6 +2478,45 @@ a:hover { text-decoration: underline; }
   margin: 16px 0 6px;
 }
 
+/* Priority section headings */
+.todo-prio-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+  padding: 14px 0 5px;
+  border-top: 1px solid var(--border-light);
+  margin-top: 2px;
+}
+.todo-prio-header:first-of-type { border-top: none; padding-top: 2px; }
+.todo-prio-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.todo-prio-count {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-placeholder);
+  margin-left: 1px;
+}
+.todo-prio-drop-ph {
+  font-size: 11px;
+  color: var(--text-placeholder);
+  font-style: italic;
+  padding: 5px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  margin: 2px 0 6px;
+  text-align: center;
+}
+.todo-prio-list { min-height: 8px; }
+
 .todo-list { display: flex; flex-direction: column; gap: 2px; }
 
 .todo-item {

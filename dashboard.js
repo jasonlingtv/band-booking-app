@@ -1864,25 +1864,46 @@ const Dashboard = (() => {
       });
     const completed = allItems.filter(i => i.note.done);
 
-    // ── Active items ─────────────────────────────────────────────────────
-    const activeHeader = document.createElement('div');
-    activeHeader.className = 'todo-section-header';
-    activeHeader.textContent = active.length === 0 ? 'To Do — All clear!' : `To Do (${active.length})`;
-    wrap.appendChild(activeHeader);
+    // ── Priority sections ─────────────────────────────────────────────────
+    const _PRIO_SECTIONS = [
+      { id: 'urgent_important',     label: 'Urgent',    color: '#ef4444' },
+      { id: 'important_not_urgent', label: 'Important', color: '#3b82f6' },
+      { id: 'urgent_not_important', label: 'Must do',   color: '#22c55e' },
+      { id: 'quick_info',           label: 'Info',      color: '#9ca3af' },
+    ];
 
-    if (active.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'dash-empty';
-      empty.textContent = 'No pending notes.';
-      wrap.appendChild(empty);
-    } else {
+    function _makePrioSection(sectionId, label, color, sectionItems) {
+      const hdr = document.createElement('div');
+      hdr.className = 'todo-prio-header';
+      const dot = document.createElement('span');
+      dot.className = 'todo-prio-dot';
+      dot.style.background = color;
+      hdr.appendChild(dot);
+      const lbl = document.createElement('span');
+      lbl.textContent = label;
+      hdr.appendChild(lbl);
+      if (sectionItems.length > 0) {
+        const cnt = document.createElement('span');
+        cnt.className = 'todo-prio-count';
+        cnt.textContent = String(sectionItems.length);
+        hdr.appendChild(cnt);
+      }
+      wrap.appendChild(hdr);
+
       const list = document.createElement('div');
-      list.className = 'todo-list';
+      list.className = 'todo-list todo-prio-list';
       const dropIndicator = document.createElement('div');
       dropIndicator.className = 'todo-drop-indicator';
       dropIndicator.style.display = 'none';
-      active.forEach(item => list.appendChild(_makeTodoItem(item, false)));
-      wrap.appendChild(list);
+
+      if (sectionItems.length === 0) {
+        const ph = document.createElement('div');
+        ph.className = 'todo-prio-drop-ph';
+        ph.textContent = 'Drop here to assign';
+        list.appendChild(ph);
+      } else {
+        sectionItems.forEach(item => list.appendChild(_makeTodoItem(item, false)));
+      }
 
       list.addEventListener('dragover', (e) => {
         if (!_todoDragId) return;
@@ -1905,26 +1926,58 @@ const Dashboard = (() => {
         e.preventDefault();
         dropIndicator.style.display = 'none';
         if (!_todoDragId) return;
+
+        const draggedItem = active.find(i => i.note.id === _todoDragId);
+        if (!draggedItem) { _todoDragId = null; return; }
+
+        // Update priority if section changed
+        if ((draggedItem.note.priority || null) !== (sectionId || null)) {
+          const t = DataLayer.getTask(draggedItem.task.id);
+          if (t) {
+            DataLayer.updateTask(t.id, {
+              listNotes: (t.listNotes || []).map(n =>
+                n.id === _todoDragId ? Object.assign({}, n, { priority: sectionId || null }) : n
+              )
+            });
+          }
+        }
+
+        // Recompute order with dragged item at drop position
         const rows = Array.from(list.querySelectorAll('.todo-item:not(.dragging)'));
         let insertBeforeId = null;
         for (const row of rows) {
           const rect = row.getBoundingClientRect();
           if (e.clientY < rect.top + rect.height / 2) { insertBeforeId = row.dataset.noteId; break; }
         }
-        const currentIds = active.map(i => i.note.id);
-        const fromIdx = currentIds.indexOf(_todoDragId);
-        if (fromIdx !== -1) currentIds.splice(fromIdx, 1);
+        const newOrder = _getTodoOrder().filter(id => id !== _todoDragId);
         if (insertBeforeId) {
-          const toIdx = currentIds.indexOf(insertBeforeId);
-          currentIds.splice(toIdx === -1 ? currentIds.length : toIdx, 0, _todoDragId);
+          const idx = newOrder.indexOf(insertBeforeId);
+          newOrder.splice(idx === -1 ? newOrder.length : idx, 0, _todoDragId);
         } else {
-          currentIds.push(_todoDragId);
+          const lastId = sectionItems.length > 0 ? sectionItems[sectionItems.length - 1].note.id : null;
+          const idx = lastId ? newOrder.indexOf(lastId) : -1;
+          newOrder.splice(idx === -1 ? newOrder.length : idx + 1, 0, _todoDragId);
         }
-        _saveTodoOrder(currentIds);
+        _saveTodoOrder(newOrder);
         _todoDragId = null;
         _clearTodoTimer();
         render();
       });
+
+      wrap.appendChild(list);
+    }
+
+    if (active.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'dash-empty';
+      empty.textContent = 'All clear — no pending reminders.';
+      wrap.appendChild(empty);
+    } else {
+      _PRIO_SECTIONS.forEach(({ id, label, color }) =>
+        _makePrioSection(id, label, color, active.filter(i => i.note.priority === id))
+      );
+      const noPrio = active.filter(i => !i.note.priority);
+      if (noPrio.length > 0) _makePrioSection(null, 'No priority', '#d1d5db', noPrio);
     }
 
     // ── Completed items (collapsed by default) ───────────────────────────
