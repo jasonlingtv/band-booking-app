@@ -5,7 +5,7 @@ const Dashboard = (() => {
   let _draft = null;        // deep clone of template being edited; null when on list view
   let _editingId = null;    // id of template being edited; null for a new template
   let _isNewDefault = false; // true when creating a new default template
-  let _dashTab = 'templates'; // 'templates' | 'todo' | 'news' | 'socials'
+  let _dashTab = 'templates'; // 'templates' | 'todo' (Overview) | 'news' | 'socials'
   let _todoTimer = null;
   let _hoverShowTimer = null;
   let _hoverHideTimer = null;
@@ -114,7 +114,7 @@ const Dashboard = (() => {
     // Tab bar
     const tabBar = document.createElement('div');
     tabBar.className = 'dash-tab-bar';
-    [['templates', 'Templates'], ['todo', 'To Do'], ['news', 'News'], ['socials', 'My Socials']].forEach(([id, label]) => {
+    [['templates', 'Templates'], ['todo', 'Overview'], ['news', 'News'], ['socials', 'My Socials']].forEach(([id, label]) => {
       const btn = document.createElement('button');
       btn.className = 'dash-tab-btn' + (_dashTab === id ? ' active' : '');
       btn.textContent = label;
@@ -1746,8 +1746,29 @@ const Dashboard = (() => {
 
   function _renderTodo(el) {
     _setupPanelHoverListeners();
-    const wrap = document.createElement('div');
-    wrap.className = 'dash-wrap';
+
+    // ── Two-column layout ─────────────────────────────────────────────────────
+    const cols = document.createElement('div');
+    cols.className = 'overview-columns';
+
+    const todoCol = document.createElement('div');
+    todoCol.className = 'overview-col';
+    const _todoColHdr = document.createElement('div');
+    _todoColHdr.className = 'overview-col-header';
+    _todoColHdr.textContent = 'TO DO';
+    todoCol.appendChild(_todoColHdr);
+    cols.appendChild(todoCol);
+
+    const notifCol = document.createElement('div');
+    notifCol.className = 'overview-col';
+    const _notifColHdr = document.createElement('div');
+    _notifColHdr.className = 'overview-col-header';
+    _notifColHdr.textContent = 'UNREAD NOTIFICATIONS';
+    notifCol.appendChild(_notifColHdr);
+    cols.appendChild(notifCol);
+
+    // alias: all existing wrap.appendChild(...) targets the To Do column
+    const wrap = todoCol;
 
     // Gather all tasks with notes across all teams/projects
     function _collectItems() {
@@ -1856,10 +1877,118 @@ const Dashboard = (() => {
       wrap.appendChild(compList);
     }
 
-    el.appendChild(wrap);
+    el.appendChild(cols);
 
-    // Live-updating age timer
-    const ageEls = wrap.querySelectorAll('.todo-age');
+    // ── Notifications column ──────────────────────────────────────────────────
+    const _currentUser = DetailPanel.getCurrentUser();
+    const _notifs = [];
+    DataLayer.getTeams().forEach(team => {
+      (team.projects || []).forEach(project => {
+        (project.sections || []).forEach(section => {
+          (section.tasks || []).forEach(task => {
+            (task.comments || []).forEach(comment => {
+              if (comment.sender !== _currentUser && !(comment.thumbsUps || []).includes(_currentUser)) {
+                _notifs.push({ comment, task, team, project });
+              }
+            });
+          });
+        });
+      });
+    });
+    _notifs.sort((a, b) => (b.comment.timestamp || '') > (a.comment.timestamp || '') ? 1 : -1);
+
+    if (!_notifs.length) {
+      const _ne = document.createElement('p');
+      _ne.className = 'dash-empty';
+      _ne.textContent = 'No unread notifications.';
+      notifCol.appendChild(_ne);
+    } else {
+      _notifs.forEach(({ comment, task, team, project }) => {
+        const item = document.createElement('div');
+        item.className = 'notif-item';
+
+        const _nt = document.createElement('div');
+        _nt.className = 'notif-task-title';
+        _nt.textContent = task.title || '(Untitled)';
+        item.appendChild(_nt);
+
+        const _np = document.createElement('div');
+        _np.className = 'notif-project';
+        _np.textContent = team.name + ' / ' + project.name;
+        item.appendChild(_np);
+
+        const _nc = document.createElement('div');
+        _nc.className = 'notif-comment-text';
+        _nc.textContent = comment.text;
+        item.appendChild(_nc);
+
+        const _nf = document.createElement('div');
+        _nf.className = 'notif-footer';
+
+        const _ns = document.createElement('span');
+        _ns.className = 'notif-sender';
+        _ns.textContent = comment.sender;
+        _nf.appendChild(_ns);
+
+        const _na = document.createElement('span');
+        _na.className = 'notif-age';
+        _na.dataset.ts = comment.timestamp || '';
+        _na.textContent = comment.timestamp ? _humanAge(comment.timestamp) : '';
+        _nf.appendChild(_na);
+
+        const _ntb = document.createElement('button');
+        _ntb.className = 'notif-thumbs-btn';
+        _ntb.textContent = '👍';
+        _ntb.title = 'Acknowledge';
+        _ntb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const t = DataLayer.getTask(task.id);
+          if (!t) return;
+          const updatedComments = (t.comments || []).map(c => {
+            if (c.id !== comment.id) return c;
+            const tu = [...(c.thumbsUps || [])];
+            if (!tu.includes(_currentUser)) tu.push(_currentUser);
+            return Object.assign({}, c, { thumbsUps: tu });
+          });
+          DataLayer.updateTask(task.id, { comments: updatedComments });
+          _clearTodoTimer();
+          render();
+          Utils.EventBus.emit('listview:refresh');
+        });
+        _nf.appendChild(_ntb);
+        item.appendChild(_nf);
+
+        item.addEventListener('mouseenter', () => {
+          clearTimeout(_hoverHideTimer);
+          _hoverHideTimer = null;
+          clearTimeout(_hoverShowTimer);
+          _hoverShowTimer = setTimeout(() => {
+            _previewTaskId = task.id;
+            DetailPanel.render(task.id);
+            setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
+          }, 300);
+        });
+        item.addEventListener('mouseleave', () => {
+          clearTimeout(_hoverShowTimer);
+          _hoverShowTimer = null;
+          _hoverHideTimer = setTimeout(() => {
+            if (!_mouseInPanel && _previewTaskId !== null) {
+              _previewTaskId = null;
+              DetailPanel.hide();
+            }
+          }, 350);
+        });
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('.notif-thumbs-btn')) return;
+          _navigate(task.id, project.id);
+        });
+
+        notifCol.appendChild(item);
+      });
+    }
+
+    // Live-updating age timer (covers both To Do ages and notification ages)
+    const ageEls = cols.querySelectorAll('.todo-age, .notif-age');
     if (ageEls.length > 0) {
       _todoTimer = setInterval(() => {
         ageEls.forEach(el => {

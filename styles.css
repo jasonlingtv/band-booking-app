@@ -3470,3 +3470,70 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--border); border-radius: var(--radius);
   background: var(--bg-hover); margin-top: 4px; line-height: 1.6;
 }
+
+/* ── Overview tab — two-column layout ───────────────────────────────────── */
+
+.overview-columns {
+  display: flex; gap: 24px; padding: 8px 24px 24px; align-items: flex-start;
+}
+.overview-col {
+  flex: 1; min-width: 0;
+  max-height: calc(100vh - 180px); overflow-y: auto;
+  padding-right: 4px;
+}
+.overview-col-header {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--text-secondary);
+  padding: 8px 0 10px; margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--bg); z-index: 1;
+}
+
+/* ── Notification items ──────────────────────────────────────────────────── */
+
+.notif-item {
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 8px; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.notif-item:hover { background: var(--bg-hover); border-color: var(--text-secondary); }
+.notif-task-title {
+  font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px;
+}
+.notif-project { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; }
+.notif-comment-text {
+  font-size: 13px; color: var(--text-secondary); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  overflow: hidden; margin-bottom: 8px;
+}
+.notif-footer {
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary);
+}
+.notif-sender { font-weight: 500; color: var(--text); }
+.notif-age { flex: 1; }
+.notif-thumbs-btn {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  padding: 3px 8px; font-size: 14px; cursor: pointer; line-height: 1;
+  transition: background 0.12s, border-color 0.12s; flex-shrink: 0;
+}
+.notif-thumbs-btn:hover {
+  background: var(--accent-blue-bg); border-color: var(--accent-blue-border);
+}
+
+/* ── Comment thumbs-up button (in comment pane) ──────────────────────────── */
+
+.comment-ack-row {
+  display: flex; justify-content: flex-end; margin-top: 6px; padding-top: 4px;
+}
+.comment-ack-btn {
+  background: none; border: 1px solid var(--border); border-radius: 6px;
+  padding: 2px 8px; font-size: 12px; cursor: pointer; color: var(--text-secondary);
+  transition: background 0.12s, border-color 0.12s;
+}
+.comment-ack-btn:hover:not(.acked):not(:disabled) {
+  background: var(--accent-blue-bg); border-color: var(--accent-blue-border);
+}
+.comment-ack-btn.acked, .comment-ack-btn:disabled {
+  background: var(--accent-blue-bg); border-color: var(--accent-blue-border);
+  color: var(--accent-blue); cursor: default;
+}

@@ -329,6 +329,30 @@ const DataLayer = (() => {
       }
     }
 
+    // 13. Seed test comment from Sarah on the first task found (for Unread Notifications demo)
+    const TEST_COMMENT_ID = 'test_sarah_1';
+    seedLoop: for (const team of _data.teams) {
+      for (const project of team.projects) {
+        for (const section of project.sections) {
+          for (const task of section.tasks) {
+            if (!(task.comments || []).some(c => c.id === TEST_COMMENT_ID)) {
+              if (!task.comments) task.comments = [];
+              task.comments.push({
+                id: TEST_COMMENT_ID,
+                sender: 'Sarah',
+                text: "Hey Jason — just checking in on this booking. Have you received the advance info from the venue yet? They mentioned sending it over last week but I haven’t seen it confirmed anywhere.",
+                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                attachments: [],
+                thumbsUps: []
+              });
+              dirty = true;
+            }
+            break seedLoop;
+          }
+        }
+      }
+    }
+
     if (dirty) saveData();
   }
 

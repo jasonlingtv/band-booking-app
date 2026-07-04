@@ -1797,7 +1797,7 @@ const DetailPanel = (() => {
   // ── Sub-Tasks section ─────────────────────────────────────────────────────
 
   // ── Shared comment bubble builder ──────────────────────────────────────────
-  function _makeCommentBubble(c) {
+  function _makeCommentBubble(c, onAcknowledge) {
     const isMine = c.sender === CURRENT_USER;
     const wrap = document.createElement('div');
     wrap.className = 'comment-bubble-wrap' + (isMine ? ' mine' : '');
@@ -1836,6 +1836,24 @@ const DetailPanel = (() => {
         bubble.appendChild(link);
       }
     });
+    // Thumbs-up button for comments from others
+    if (!isMine) {
+      const thumbsUps = c.thumbsUps || [];
+      const iAcked = thumbsUps.includes(CURRENT_USER);
+      const ackRow = document.createElement('div');
+      ackRow.className = 'comment-ack-row';
+      const ackBtn = document.createElement('button');
+      ackBtn.className = 'comment-ack-btn' + (iAcked ? ' acked' : '');
+      ackBtn.textContent = iAcked ? '👍 ' + thumbsUps.length : '👍';
+      ackBtn.title = iAcked ? 'Acknowledged' : 'Acknowledge';
+      if (!iAcked && onAcknowledge) {
+        ackBtn.addEventListener('click', () => onAcknowledge(c.id));
+      } else {
+        ackBtn.disabled = true;
+      }
+      ackRow.appendChild(ackBtn);
+      bubble.appendChild(ackRow);
+    }
     wrap.appendChild(bubble);
     return wrap;
   }
@@ -1905,7 +1923,8 @@ const DetailPanel = (() => {
       if (!t) return;
       const comment = {
         id: Utils.generateId(), sender: CURRENT_USER, text,
-        timestamp: new Date().toISOString(), attachments: _pending.slice()
+        timestamp: new Date().toISOString(), attachments: _pending.slice(),
+        thumbsUps: []
       };
       DataLayer.updateTask(taskId, { comments: [...(t.comments || []), comment] });
       textarea.value = ''; textarea.style.height = '';
@@ -2014,6 +2033,7 @@ const DetailPanel = (() => {
           const noteId = Utils.generateId();
           notes.push({ id: noteId, text, timestamp: new Date().toISOString(), done: false, source: 'panel' });
           DataLayer.updateTask(task.id, { listNotes: notes, lastReminderByPanel: { noteId, text } });
+          Utils.EventBus.emit('todo:updated');
         }
         refreshDisplay();
       }
@@ -2029,6 +2049,21 @@ const DetailPanel = (() => {
 
     refreshDisplay();
     container.appendChild(wrap);
+  }
+
+  function _acknowledgeComment(taskId, commentId) {
+    const t = DataLayer.getTask(taskId);
+    if (!t) return;
+    const updatedComments = (t.comments || []).map(c => {
+      if (c.id !== commentId) return c;
+      const tu = [...(c.thumbsUps || [])];
+      if (!tu.includes(CURRENT_USER)) tu.push(CURRENT_USER);
+      return Object.assign({}, c, { thumbsUps: tu });
+    });
+    DataLayer.updateTask(taskId, { comments: updatedComments });
+    if (_refreshPaneComments) _refreshPaneComments();
+    Utils.EventBus.emit('todo:updated');
+    Utils.EventBus.emit('listview:refresh');
   }
 
   function _openCommentPane(task) {
@@ -2063,7 +2098,8 @@ const DetailPanel = (() => {
     function renderPane() {
       thread.innerHTML = '';
       const t = DataLayer.getTask(task.id);
-      (t ? (t.comments || []) : []).forEach(c => thread.appendChild(_makeCommentBubble(c)));
+      const ack = (commentId) => _acknowledgeComment(task.id, commentId);
+      (t ? (t.comments || []) : []).forEach(c => thread.appendChild(_makeCommentBubble(c, ack)));
       thread.scrollTop = thread.scrollHeight;
     }
 
@@ -2082,6 +2118,13 @@ const DetailPanel = (() => {
 
     document.getElementById('app').classList.add('comment-pane-open');
   }
+
+  function openCommentPane(taskId) {
+    const task = DataLayer.getTask(taskId);
+    if (task) _openCommentPane(task);
+  }
+
+  function getCurrentUser() { return CURRENT_USER; }
 
   // ── Per-task structure helpers ────────────────────────────────────────────
 
@@ -2781,5 +2824,5 @@ const DetailPanel = (() => {
     });
   }
 
-  return { render, hide, init, getCommentReadTime };
+  return { render, hide, init, getCommentReadTime, getCurrentUser, openCommentPane };
 })();

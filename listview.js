@@ -493,8 +493,8 @@ const ListView = (() => {
     // Unread comment pulse
     const taskComments = task.comments || [];
     if (taskComments.length > 0) {
-      const lastRead = DetailPanel.getCommentReadTime(task.id);
-      const hasUnread = taskComments.some(c => c.sender !== 'Jason' && (!lastRead || c.timestamp > lastRead));
+      const cu = DetailPanel.getCurrentUser();
+      const hasUnread = taskComments.some(c => c.sender !== cu && !(c.thumbsUps || []).includes(cu));
       if (hasUnread) {
         const pulse = document.createElement('div');
         pulse.className = 'comment-unread-pulse';

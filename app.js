@@ -130,6 +130,14 @@
       }
     });
 
+    Utils.EventBus.on('todo:updated', () => {
+      if (_dashboardActive) Dashboard.render();
+    });
+
+    Utils.EventBus.on('listview:refresh', () => {
+      if (!_dashboardActive) ListView.render();
+    });
+
     Utils.EventBus.on('todo:navigate', ({ taskId, projectId }) => {
       _hideDashboard();
       DataLayer.setActiveProjectId(projectId);
