@@ -1886,10 +1886,9 @@ const DetailPanel = (() => {
     pendingPreview.className = 'comment-pending-preview';
     inputWrap.appendChild(pendingPreview);
 
-    // Eisenhower matrix — shown when textarea is focused/has content
+    // Eisenhower matrix — floats above input while textarea is focused
     const matrixEl = document.createElement('div');
     matrixEl.className = 'comment-matrix';
-    matrixEl.hidden = true;
     const _matDefs = [
       [
         { id: 'urgent_important',     label: 'Urgent &\nImportant'    },
@@ -1976,22 +1975,22 @@ const DetailPanel = (() => {
       DataLayer.updateTask(taskId, updates);
       textarea.value = ''; textarea.style.height = '';
       _pending = []; _renderPending();
-      matrixEl.hidden = true;
+      matrixEl.classList.remove('matrix-visible');
       onSent();
     }
 
     textarea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _send('quick_info'); }
     });
-    textarea.addEventListener('focus', () => { _editingActive = true; matrixEl.hidden = false; });
+    textarea.addEventListener('focus', () => { _editingActive = true; matrixEl.classList.add('matrix-visible'); });
     textarea.addEventListener('blur', () => {
       setTimeout(() => { _editingActive = false; }, 100);
-      setTimeout(() => { if (!textarea.matches(':focus')) matrixEl.hidden = true; }, 200);
+      setTimeout(() => { if (!textarea.matches(':focus')) matrixEl.classList.remove('matrix-visible'); }, 200);
     });
     textarea.addEventListener('input', () => {
       textarea.style.height = 'auto';
       textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-      matrixEl.hidden = false;
+      matrixEl.classList.add('matrix-visible');
     });
     attachBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
