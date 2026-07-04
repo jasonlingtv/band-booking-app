@@ -1782,6 +1782,17 @@ const Dashboard = (() => {
     todoCol.appendChild(_todoColHdr);
     cols.appendChild(todoCol);
 
+    // If mouse enters To Do column while notification preview is open, reset everything
+    todoCol.addEventListener('mouseenter', () => {
+      if (!document.getElementById('app').classList.contains('notif-preview-open')) return;
+      clearTimeout(_hoverShowTimer); _hoverShowTimer = null;
+      clearTimeout(_hoverHideTimer); _hoverHideTimer = null;
+      _mouseInPanel = false;
+      _previewTaskId = null;
+      document.getElementById('app').classList.remove('notif-preview-open');
+      DetailPanel.hide();
+    });
+
     const notifCol = document.createElement('div');
     notifCol.className = 'overview-col';
     const _notifColHdr = document.createElement('div');
