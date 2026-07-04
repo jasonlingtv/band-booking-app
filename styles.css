@@ -1167,13 +1167,20 @@ a:hover { text-decoration: underline; }
 #app.notif-preview-open.comment-pane-open .overview-columns {
   max-width: calc(100% - max(45vw, 380px) - 300px - 24px);
 }
-/* Notifications on top, To Do below — both use base max-height/scroll unchanged */
+/* Notifications on top, To Do below — both fill container width */
+#app.notif-preview-open .overview-columns {
+  overflow: hidden;
+}
 #app.notif-preview-open .overview-col--notif {
   order: -1;
   flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
 }
 #app.notif-preview-open .overview-col--todo {
   flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
 }
 
 .comment-pane-header {
