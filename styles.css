@@ -3537,6 +3537,13 @@ a:hover { text-decoration: underline; }
 
 .overview-columns {
   display: flex; gap: 24px; padding: 8px 24px 24px; align-items: flex-start;
+  transition: padding-right 0.2s ease;
+}
+#app.detail-panel-open .overview-columns {
+  padding-right: calc(max(45vw, 380px) + 16px);
+}
+#app.detail-panel-open.comment-pane-open .overview-columns {
+  padding-right: calc(max(45vw, 380px) + 316px);
 }
 .overview-col {
   flex: 1; min-width: 0;
@@ -3558,14 +3565,15 @@ a:hover { text-decoration: underline; }
   margin-bottom: 8px; cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
-.notif-item:hover { background: var(--bg-hover); border-color: var(--text-secondary); }
+.notif-item:hover { background: var(--bg-hover); border-color: var(--accent-blue-border, #93c5fd); }
+.notif-item.active { border-color: var(--accent-blue, #3b82f6); background: var(--accent-blue-bg, #eff6ff); }
 .notif-task-title {
   font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px;
 }
 .notif-project { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; }
 .notif-comment-text {
   font-size: 13px; color: var(--text-secondary); line-height: 1.5;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden; margin-bottom: 8px;
 }
 .notif-footer {

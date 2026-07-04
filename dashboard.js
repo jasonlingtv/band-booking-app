@@ -39,19 +39,20 @@ const Dashboard = (() => {
       delete panel._dashTodoEnter;
       delete panel._dashTodoLeave;
     }
+    const pane = document.getElementById('comment-pane');
+    if (pane && pane._dashTodoEnter) {
+      pane.removeEventListener('mouseenter', pane._dashTodoEnter);
+      pane.removeEventListener('mouseleave', pane._dashTodoLeave);
+      delete pane._dashTodoEnter;
+      delete pane._dashTodoLeave;
+    }
     _mouseInPanel = false;
   }
 
   function _setupPanelHoverListeners() {
     _cleanupPanelHoverListeners();
-    const panel = document.getElementById('detail-panel');
-    if (!panel) return;
-    panel._dashTodoEnter = () => {
-      clearTimeout(_hoverHideTimer);
-      _hoverHideTimer = null;
-      _mouseInPanel = true;
-    };
-    panel._dashTodoLeave = () => {
+    const _onEnter = () => { clearTimeout(_hoverHideTimer); _hoverHideTimer = null; _mouseInPanel = true; };
+    const _onLeave = () => {
       _mouseInPanel = false;
       _hoverHideTimer = setTimeout(() => {
         if (_previewTaskId !== null || _previewTemplateId !== null) {
@@ -65,8 +66,20 @@ const Dashboard = (() => {
         }
       }, 350);
     };
-    panel.addEventListener('mouseenter', panel._dashTodoEnter);
-    panel.addEventListener('mouseleave', panel._dashTodoLeave);
+    const panel = document.getElementById('detail-panel');
+    if (panel) {
+      panel._dashTodoEnter = _onEnter;
+      panel._dashTodoLeave = _onLeave;
+      panel.addEventListener('mouseenter', panel._dashTodoEnter);
+      panel.addEventListener('mouseleave', panel._dashTodoLeave);
+    }
+    const pane = document.getElementById('comment-pane');
+    if (pane) {
+      pane._dashTodoEnter = _onEnter;
+      pane._dashTodoLeave = _onLeave;
+      pane.addEventListener('mouseenter', pane._dashTodoEnter);
+      pane.addEventListener('mouseleave', pane._dashTodoLeave);
+    }
   }
 
   function clearTimers() {
@@ -2085,29 +2098,13 @@ const Dashboard = (() => {
         _nf.appendChild(_ntb);
         item.appendChild(_nf);
 
-        item.addEventListener('mouseenter', () => {
-          clearTimeout(_hoverHideTimer);
-          _hoverHideTimer = null;
-          clearTimeout(_hoverShowTimer);
-          _hoverShowTimer = setTimeout(() => {
-            _previewTaskId = task.id;
-            DetailPanel.render(task.id);
-            setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
-          }, 300);
-        });
-        item.addEventListener('mouseleave', () => {
-          clearTimeout(_hoverShowTimer);
-          _hoverShowTimer = null;
-          _hoverHideTimer = setTimeout(() => {
-            if (!_mouseInPanel && _previewTaskId !== null) {
-              _previewTaskId = null;
-              DetailPanel.hide();
-            }
-          }, 350);
-        });
         item.addEventListener('click', (e) => {
           if (e.target.closest('.notif-thumbs-btn')) return;
-          _navigate(task.id, project.id);
+          notifCol.querySelectorAll('.notif-item.active').forEach(el => el.classList.remove('active'));
+          item.classList.add('active');
+          _previewTaskId = task.id;
+          DetailPanel.render(task.id);
+          setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
         });
 
         notifCol.appendChild(item);

@@ -59,6 +59,7 @@ const DetailPanel = (() => {
 
   function render(taskId) {
     _editingActive = false;
+    document.getElementById('app').classList.add('detail-panel-open');
     const isNewTask = taskId !== _accordionTaskId;
     if (isNewTask) {
       _accordionTaskId = taskId;
@@ -127,6 +128,7 @@ const DetailPanel = (() => {
 
   function hide() {
     document.getElementById('detail-panel').classList.add('hidden');
+    document.getElementById('app').classList.remove('detail-panel-open');
     // Close comment pane so it doesn't orphan after panel closes
     document.getElementById('app').classList.remove('comment-pane-open');
     _refreshPaneComments = null;
