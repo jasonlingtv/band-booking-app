@@ -1795,7 +1795,7 @@ const Dashboard = (() => {
     cols.className = 'overview-columns';
 
     const todoCol = document.createElement('div');
-    todoCol.className = 'overview-col';
+    todoCol.className = 'overview-col overview-col--todo';
     const _todoColHdr = document.createElement('div');
     _todoColHdr.className = 'overview-col-header';
     _todoColHdr.textContent = 'TO DO';
@@ -1814,7 +1814,7 @@ const Dashboard = (() => {
     });
 
     const notifCol = document.createElement('div');
-    notifCol.className = 'overview-col';
+    notifCol.className = 'overview-col overview-col--notif';
     const _notifColHdr = document.createElement('div');
     _notifColHdr.className = 'overview-col-header';
     _notifColHdr.textContent = 'UNREAD NOTIFICATIONS';

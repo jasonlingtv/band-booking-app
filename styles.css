@@ -3564,6 +3564,11 @@ a:hover { text-decoration: underline; }
 #app.notif-preview-open.comment-pane-open .overview-columns {
   padding-right: calc(max(45vw, 380px) + 316px);
 }
+/* To Do column must never compress when the notification panel opens */
+#app.notif-preview-open .overview-col--todo {
+  flex-shrink: 0;
+  min-width: 260px;
+}
 .overview-col {
   flex: 1; min-width: 0;
   max-height: calc(100vh - 180px); overflow-y: auto;
