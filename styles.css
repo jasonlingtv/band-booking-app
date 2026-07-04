@@ -1156,15 +1156,21 @@ a:hover { text-decoration: underline; }
   width: 210px;
   min-width: 210px;
 }
-/* Notification preview: wide page overlay — no column compression */
-#app.notif-preview-open #detail-panel {
-  width: max(65vw, 560px);
-  transition: right 0.2s ease, width 0.2s ease;
+/* Notification preview: notifications column slides left and takes over full width;
+   To Do column animates down and out */
+.overview-col--todo {
+  transition: flex-basis 0.3s ease, max-width 0.3s ease, opacity 0.25s ease, transform 0.3s ease;
 }
-#app.notif-preview-open.comment-pane-open #detail-panel {
-  width: max(calc(65vw - 300px), 260px);
-  right: 300px;
-  transition: right 0.2s ease, width 0.2s ease;
+#app.notif-preview-open .overview-col--todo {
+  flex: 0 0 0px;
+  max-width: 0;
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(28px);
+}
+#app.notif-preview-open .overview-columns {
+  gap: 0;
 }
 
 .comment-pane-header {
