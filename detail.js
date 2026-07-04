@@ -2004,6 +2004,7 @@ const DetailPanel = (() => {
 
     function refreshDisplay() {
       wrap.innerHTML = '';
+      wrap.classList.remove('detail-task-reminder--editing');
       const t = DataLayer.getTask(task.id);
       const last = t && t.lastReminderByPanel;
       if (last) {
@@ -2023,46 +2024,39 @@ const DetailPanel = (() => {
     function startEdit() {
       if (wrap.querySelector('input')) return;
       wrap.innerHTML = '';
-
-      // Eisenhower matrix — inline above input (static flow, not absolute)
-      const matrixEl = document.createElement('div');
-      matrixEl.className = 'comment-matrix';
-      matrixEl.style.cssText = 'position:static;margin-bottom:6px;display:none;';
-      const _matDefs = [
-        [
-          { id: 'urgent_important',     label: 'Urgent, do immediately' },
-          { id: 'important_not_urgent', label: 'Important, do soon'     }
-        ],
-        [
-          { id: 'urgent_not_important', label: 'Must be done'           },
-          { id: 'quick_info',           label: 'Quick information'      }
-        ]
-      ];
-      _matDefs.forEach(rowDefs => {
-        const rowEl = document.createElement('div');
-        rowEl.className = 'comment-matrix-row';
-        rowDefs.forEach(({ id, label }) => {
-          const btn = document.createElement('button');
-          btn.className = 'matrix-btn matrix-btn--' + id.replace(/_/g, '-');
-          btn.textContent = label;
-          btn.addEventListener('mousedown', (e) => e.preventDefault());
-          btn.addEventListener('click', () => commitNote(id));
-          rowEl.appendChild(btn);
-        });
-        matrixEl.appendChild(rowEl);
-      });
-      wrap.appendChild(matrixEl);
+      wrap.classList.add('detail-task-reminder--editing');
 
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'detail-reminder-input';
-      input.value = '';
       input.placeholder = 'Add a reminder…';
+      wrap.appendChild(input);
+
+      const strip = document.createElement('div');
+      strip.className = 'prio-strip';
+      strip.style.display = 'none';
+      [
+        { id: 'urgent_important',     label: 'Urgent',     cls: 'urgent-important'     },
+        { id: 'important_not_urgent', label: 'Important',  cls: 'important-not-urgent' },
+        { id: 'urgent_not_important', label: 'Must do',    cls: 'urgent-not-important' },
+        { id: 'quick_info',           label: 'Info',       cls: 'quick-info'           }
+      ].forEach(({ id, label, cls }) => {
+        const btn = document.createElement('button');
+        btn.className = 'prio-dot-btn prio-dot-btn--' + cls;
+        btn.textContent = label;
+        btn.title = _PRIO[id].label;
+        btn.addEventListener('mousedown', (e) => e.preventDefault());
+        btn.addEventListener('click', () => commitNote(id));
+        strip.appendChild(btn);
+      });
+      wrap.appendChild(strip);
+
       let committed = false;
 
       function commitNote(priority) {
         if (committed) return;
         committed = true;
+        strip.style.display = 'none';
         const text = input.value.trim();
         if (text) {
           const t = DataLayer.getTask(task.id);
@@ -2079,12 +2073,11 @@ const DetailPanel = (() => {
         if (ev.key === 'Enter') { ev.preventDefault(); commitNote(null); }
         if (ev.key === 'Escape') { committed = true; refreshDisplay(); }
       });
-      input.addEventListener('focus', () => { matrixEl.style.display = 'grid'; _editingActive = true; });
+      input.addEventListener('focus', () => { strip.style.display = 'flex'; _editingActive = true; });
       input.addEventListener('blur', () => {
-        setTimeout(() => { matrixEl.style.display = 'none'; _editingActive = false; }, 200);
+        setTimeout(() => { strip.style.display = 'none'; _editingActive = false; }, 200);
         setTimeout(() => commitNote(null), 250);
       });
-      wrap.appendChild(input);
       setTimeout(() => input.focus(), 0);
     }
 

@@ -385,6 +385,13 @@ const ListView = (() => {
     const col = document.createElement('div');
     col.className = 'task-col-notes';
 
+    const _prioOpts = [
+      { id: 'urgent_important',     label: 'Urgent',    cls: 'urgent-important'     },
+      { id: 'important_not_urgent', label: 'Important', cls: 'important-not-urgent' },
+      { id: 'urgent_not_important', label: 'Must do',   cls: 'urgent-not-important' },
+      { id: 'quick_info',           label: 'Info',      cls: 'quick-info'           }
+    ];
+
     function refreshDisplay() {
       col.innerHTML = '';
       const t = DataLayer.getTask(task.id);
@@ -393,6 +400,13 @@ const ListView = (() => {
       if (last) {
         span.className = 'task-note-text task-note-sent';
         span.textContent = last.text;
+        if (last.priority) {
+          const dot = document.createElement('span');
+          dot.style.cssText = 'display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;flex-shrink:0;';
+          const colours = { urgent_important: '#ef4444', important_not_urgent: '#3b82f6', urgent_not_important: '#22c55e', quick_info: '#9ca3af' };
+          dot.style.background = colours[last.priority] || '#9ca3af';
+          span.prepend(dot);
+        }
       } else {
         span.className = 'task-note-text placeholder';
         span.textContent = 'Add a reminder…';
@@ -408,31 +422,50 @@ const ListView = (() => {
       const input = document.createElement('input');
       input.type = 'text';
       input.className = 'task-notes-input';
-      input.value = '';
       input.placeholder = 'Add a reminder…';
+      col.appendChild(input);
+
+      const strip = document.createElement('div');
+      strip.className = 'prio-strip prio-strip--overlay';
+      strip.style.display = 'none';
+      _prioOpts.forEach(({ id, label, cls }) => {
+        const btn = document.createElement('button');
+        btn.className = 'prio-dot-btn prio-dot-btn--' + cls;
+        btn.textContent = label;
+        btn.addEventListener('mousedown', (e2) => e2.preventDefault());
+        btn.addEventListener('click', () => commitNote(id));
+        strip.appendChild(btn);
+      });
+      col.appendChild(strip);
+
       let committed = false;
 
-      function commitNote() {
+      function commitNote(priority) {
         if (committed) return;
         committed = true;
+        strip.style.display = 'none';
         const text = input.value.trim();
         if (text) {
           const t = DataLayer.getTask(task.id);
           const notes = t && t.listNotes ? [...t.listNotes] : [];
           const noteId = Utils.generateId();
-          notes.push({ id: noteId, text, timestamp: new Date().toISOString(), done: false, source: 'column' });
-          DataLayer.updateTask(task.id, { listNotes: notes, lastReminderByColumn: { noteId, text } });
+          notes.push({ id: noteId, text, timestamp: new Date().toISOString(), done: false, source: 'column', priority: priority || null });
+          DataLayer.updateTask(task.id, { listNotes: notes, lastReminderByColumn: { noteId, text, priority: priority || null } });
+          Utils.EventBus.emit('todo:updated');
           UIHelpers.showSaved();
         }
         refreshDisplay();
       }
 
       input.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Enter') { ev.preventDefault(); commitNote(); }
+        if (ev.key === 'Enter') { ev.preventDefault(); commitNote(null); }
         if (ev.key === 'Escape') { committed = true; refreshDisplay(); }
       });
-      input.addEventListener('blur', () => setTimeout(commitNote, 100));
-      col.appendChild(input);
+      input.addEventListener('focus', () => { strip.style.display = 'flex'; });
+      input.addEventListener('blur', () => {
+        setTimeout(() => { strip.style.display = 'none'; }, 200);
+        setTimeout(() => commitNote(null), 250);
+      });
       setTimeout(() => input.focus(), 0);
     });
 
