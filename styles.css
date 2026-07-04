@@ -2188,6 +2188,11 @@ a:hover { text-decoration: underline; }
   margin-top: 0;
   margin-bottom: 4px;
 }
+.editor-actions--panel {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+}
 
 /* ── Inline template edit controls ───────────────────────────────────────── */
 

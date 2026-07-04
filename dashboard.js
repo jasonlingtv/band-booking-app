@@ -424,7 +424,27 @@ const Dashboard = (() => {
     if (!panel || !content) return;
 
     content.innerHTML = '';
-    if (bottom) { bottom.innerHTML = ''; bottom.style.display = 'none'; }
+    if (bottom) {
+      bottom.innerHTML = '';
+      if (isEditMode) {
+        bottom.style.display = '';
+        const panelActions = document.createElement('div');
+        panelActions.className = 'editor-actions editor-actions--panel';
+        const pSave = document.createElement('button');
+        pSave.className = 'dash-btn-primary';
+        pSave.textContent = 'Save Template';
+        pSave.addEventListener('click', _save);
+        const pCancel = document.createElement('button');
+        pCancel.className = 'dash-btn-secondary';
+        pCancel.textContent = 'Cancel';
+        pCancel.addEventListener('click', () => { _draft = null; _editingId = null; render(); });
+        panelActions.appendChild(pSave);
+        panelActions.appendChild(pCancel);
+        bottom.appendChild(panelActions);
+      } else {
+        bottom.style.display = 'none';
+      }
+    }
     panel.classList.remove('hidden');
 
     const badge = document.createElement('div');
