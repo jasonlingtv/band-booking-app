@@ -1156,6 +1156,16 @@ a:hover { text-decoration: underline; }
   width: 210px;
   min-width: 210px;
 }
+/* Notification preview: wide page overlay — no column compression */
+#app.notif-preview-open #detail-panel {
+  width: max(65vw, 560px);
+  transition: right 0.2s ease, width 0.2s ease;
+}
+#app.notif-preview-open.comment-pane-open #detail-panel {
+  width: max(calc(65vw - 300px), 260px);
+  right: 300px;
+  transition: right 0.2s ease, width 0.2s ease;
+}
 
 .comment-pane-header {
   display: flex;
@@ -3556,18 +3566,6 @@ a:hover { text-decoration: underline; }
 
 .overview-columns {
   display: flex; gap: 24px; padding: 8px 24px 24px; align-items: flex-start;
-  transition: padding-right 0.2s ease;
-}
-#app.notif-preview-open .overview-columns {
-  padding-right: calc(max(45vw, 380px) + 16px);
-}
-#app.notif-preview-open.comment-pane-open .overview-columns {
-  padding-right: calc(max(45vw, 380px) + 316px);
-}
-/* To Do column must never compress when the notification panel opens */
-#app.notif-preview-open .overview-col--todo {
-  flex-shrink: 0;
-  min-width: 260px;
 }
 .overview-col {
   flex: 1; min-width: 0;
