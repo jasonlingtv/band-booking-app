@@ -1156,21 +1156,31 @@ a:hover { text-decoration: underline; }
   width: 210px;
   min-width: 210px;
 }
-/* Notification preview: stack vertically; JS sets exact pixel width on .overview-columns */
+/* Notification preview: stack columns vertically, fit snugly beside the task panel */
 #app.notif-preview-open .overview-columns {
   flex-direction: column;
   align-items: stretch;
+  max-width: calc(100% - max(45vw, 380px) - 24px);
   gap: 20px;
-  overflow: visible;
+  transition: max-width 0.25s ease;
+}
+#app.notif-preview-open.comment-pane-open .overview-columns {
+  max-width: calc(100% - max(45vw, 380px) - 300px - 24px);
+}
+/* Notifications on top, To Do below — both fill container width */
+#app.notif-preview-open .overview-columns {
+  overflow: hidden;
 }
 #app.notif-preview-open .overview-col--notif {
   order: -1;
   flex: 0 0 auto;
+  width: 100%;
   min-width: 0;
   max-height: none;
 }
 #app.notif-preview-open .overview-col--todo {
   flex: 0 0 auto;
+  width: 100%;
   min-width: 0;
   max-height: none;
 }
