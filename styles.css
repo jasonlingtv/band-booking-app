@@ -2772,12 +2772,26 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  background: var(--bg-hover);
-  border: 1px solid var(--border);
   padding: 3px 9px;
   border-radius: 20px;
   margin-bottom: 14px;
+  border: 1px solid;
+}
+.tmpl-preview-badge--preview {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.tmpl-preview-badge--edit {
+  color: #991b1b;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+/* fallback for badge without modifier */
+.tmpl-preview-badge:not(.tmpl-preview-badge--preview):not(.tmpl-preview-badge--edit) {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border-color: var(--border);
 }
 
 /* ── Editor two-column layout ─────────────────────────────────────────────── */

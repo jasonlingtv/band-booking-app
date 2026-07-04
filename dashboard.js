@@ -417,7 +417,7 @@ const Dashboard = (() => {
 
   // ── Template preview panel ────────────────────────────────────────────────
 
-  function _renderTemplatePreviewInPanel(template) {
+  function _renderTemplatePreviewInPanel(template, isEditMode) {
     const panel = document.getElementById('detail-panel');
     const content = document.getElementById('detail-content');
     const bottom = document.getElementById('detail-bottom');
@@ -428,7 +428,7 @@ const Dashboard = (() => {
     panel.classList.remove('hidden');
 
     const badge = document.createElement('div');
-    badge.className = 'tmpl-preview-badge';
+    badge.className = 'tmpl-preview-badge' + (isEditMode ? ' tmpl-preview-badge--edit' : ' tmpl-preview-badge--preview');
     badge.textContent = template.name || 'Template Preview';
     content.appendChild(badge);
 
@@ -782,7 +782,7 @@ const Dashboard = (() => {
     topActions.style.display = 'none';
 
     _refreshEditorPreview = function() {
-      _renderTemplatePreviewInPanel(_draft);
+      _renderTemplatePreviewInPanel(_draft, true);
       if (_editorInitialized) topActions.style.display = '';
     };
     _refreshEditorPreview();
