@@ -27,6 +27,13 @@ const DetailPanel = (() => {
   // Phase 2: replace with a real account lookup (e.g. Supabase auth.user().email).
   const CURRENT_USER = 'Jason';
 
+  const _PRIO = {
+    urgent_important:     { label: 'Urgent & Important',    cls: 'prio-pill--urg-imp' },
+    important_not_urgent: { label: 'Important, Not Urgent', cls: 'prio-pill--imp-nur' },
+    urgent_not_important: { label: 'Urgent, Not Important', cls: 'prio-pill--urg-nim' },
+    quick_info:           { label: 'Quick Info',            cls: 'prio-pill--quick'   }
+  };
+
   // ── Time option helpers ───────────────────────────────────────────────────
 
   function _timeOptions(firstOption) {
@@ -1836,6 +1843,13 @@ const DetailPanel = (() => {
         bubble.appendChild(link);
       }
     });
+    // Priority pill
+    if (c.priority && _PRIO[c.priority]) {
+      const pill = document.createElement('span');
+      pill.className = 'comment-prio-pill ' + _PRIO[c.priority].cls;
+      pill.textContent = _PRIO[c.priority].label;
+      bubble.appendChild(pill);
+    }
     // Thumbs-up button for comments from others
     if (!isMine) {
       const thumbsUps = c.thumbsUps || [];
@@ -1872,6 +1886,35 @@ const DetailPanel = (() => {
     pendingPreview.className = 'comment-pending-preview';
     inputWrap.appendChild(pendingPreview);
 
+    // Eisenhower matrix — shown when textarea is focused/has content
+    const matrixEl = document.createElement('div');
+    matrixEl.className = 'comment-matrix';
+    matrixEl.hidden = true;
+    const _matDefs = [
+      [
+        { id: 'urgent_important',     label: 'Urgent &\nImportant'    },
+        { id: 'important_not_urgent', label: 'Important,\nNot Urgent'  }
+      ],
+      [
+        { id: 'urgent_not_important', label: 'Urgent,\nNot Important'  },
+        { id: 'quick_info',           label: 'Quick Info'              }
+      ]
+    ];
+    _matDefs.forEach(rowDefs => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'comment-matrix-row';
+      rowDefs.forEach(({ id, label }) => {
+        const btn = document.createElement('button');
+        btn.className = 'matrix-btn matrix-btn--' + id.replace(/_/g, '-');
+        btn.textContent = label;
+        btn.addEventListener('mousedown', (e) => e.preventDefault()); // keep textarea focused
+        btn.addEventListener('click', () => _send(id));
+        rowEl.appendChild(btn);
+      });
+      matrixEl.appendChild(rowEl);
+    });
+    inputWrap.appendChild(matrixEl);
+
     const inputRow = document.createElement('div');
     inputRow.className = 'comment-input-row';
     inputWrap.appendChild(inputRow);
@@ -1887,11 +1930,6 @@ const DetailPanel = (() => {
     textarea.placeholder = 'Write a comment…';
     textarea.rows = 1;
     inputRow.appendChild(textarea);
-
-    const sendBtn = document.createElement('button');
-    sendBtn.className = 'comment-send-btn';
-    sendBtn.textContent = 'Send';
-    inputRow.appendChild(sendBtn);
 
     let _pending = [];
 
@@ -1916,32 +1954,45 @@ const DetailPanel = (() => {
       });
     }
 
-    function _send() {
+    function _send(priority) {
       const text = textarea.value.trim();
       if (!text && !_pending.length) return;
       const t = DataLayer.getTask(taskId);
       if (!t) return;
+      const ts = new Date().toISOString();
       const comment = {
         id: Utils.generateId(), sender: CURRENT_USER, text,
-        timestamp: new Date().toISOString(), attachments: _pending.slice(),
-        thumbsUps: []
+        timestamp: ts, attachments: _pending.slice(),
+        thumbsUps: [], priority: priority || 'quick_info'
       };
-      DataLayer.updateTask(taskId, { comments: [...(t.comments || []), comment] });
+      const updates = { comments: [...(t.comments || []), comment] };
+      // Priority comments also generate a To Do item
+      if (priority) {
+        const notes = [...(t.listNotes || [])];
+        notes.push({ id: Utils.generateId(), text, timestamp: ts, done: false, source: 'comment', priority });
+        updates.listNotes = notes;
+        Utils.EventBus.emit('todo:updated');
+      }
+      DataLayer.updateTask(taskId, updates);
       textarea.value = ''; textarea.style.height = '';
       _pending = []; _renderPending();
+      matrixEl.hidden = true;
       onSent();
     }
 
     textarea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _send(); }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _send('quick_info'); }
     });
-    textarea.addEventListener('focus', () => { _editingActive = true; });
-    textarea.addEventListener('blur', () => { setTimeout(() => { _editingActive = false; }, 100); });
+    textarea.addEventListener('focus', () => { _editingActive = true; matrixEl.hidden = false; });
+    textarea.addEventListener('blur', () => {
+      setTimeout(() => { _editingActive = false; }, 100);
+      setTimeout(() => { if (!textarea.matches(':focus')) matrixEl.hidden = true; }, 200);
+    });
     textarea.addEventListener('input', () => {
       textarea.style.height = 'auto';
       textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      matrixEl.hidden = false;
     });
-    sendBtn.addEventListener('click', _send);
     attachBtn.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', () => {
       const files = Array.from(fileInput.files);

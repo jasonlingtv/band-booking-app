@@ -17,6 +17,15 @@ const Dashboard = (() => {
   let _pendingNewIds = new Set(); // IDs of items just added, not yet confirmed by typing
   let _demoState = {}; // Temp state for interactive demo preview; resets when editor closes
   let _activeTemplateRow = null; // Template row currently showing the blue left-border accent
+  let _completedExpanded = false;
+  let _todoDragId = null;
+  const _TODO_ORDER_KEY = 'band_booking_todo_order';
+
+  function _getTodoOrder() {
+    try { return JSON.parse(localStorage.getItem(_TODO_ORDER_KEY) || '[]'); }
+    catch (_) { return []; }
+  }
+  function _saveTodoOrder(ids) { localStorage.setItem(_TODO_ORDER_KEY, JSON.stringify(ids)); }
 
   function _clearTodoTimer() {
     if (_todoTimer) { clearInterval(_todoTimer); _todoTimer = null; }
@@ -1834,12 +1843,19 @@ const Dashboard = (() => {
     }
 
     const allItems = _collectItems();
+    const savedOrder = _getTodoOrder();
     const active = allItems
       .filter(i => !i.note.done)
       .sort((a, b) => {
-        const ta = a.note.timestamp || '0';
-        const tb = b.note.timestamp || '0';
-        return ta < tb ? -1 : ta > tb ? 1 : 0; // oldest first
+        const ai = savedOrder.indexOf(a.note.id);
+        const bi = savedOrder.indexOf(b.note.id);
+        if (ai === -1 && bi === -1) {
+          const ta = a.note.timestamp || '0', tb = b.note.timestamp || '0';
+          return ta < tb ? -1 : ta > tb ? 1 : 0;
+        }
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
       });
     const completed = allItems.filter(i => i.note.done);
 
@@ -1857,24 +1873,77 @@ const Dashboard = (() => {
     } else {
       const list = document.createElement('div');
       list.className = 'todo-list';
-      active.forEach(item => {
-        list.appendChild(_makeTodoItem(item, false));
-      });
+      const dropIndicator = document.createElement('div');
+      dropIndicator.className = 'todo-drop-indicator';
+      dropIndicator.style.display = 'none';
+      active.forEach(item => list.appendChild(_makeTodoItem(item, false)));
       wrap.appendChild(list);
+
+      list.addEventListener('dragover', (e) => {
+        if (!_todoDragId) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const rows = Array.from(list.querySelectorAll('.todo-item:not(.dragging)'));
+        let insertBefore = null;
+        for (const row of rows) {
+          const rect = row.getBoundingClientRect();
+          if (e.clientY < rect.top + rect.height / 2) { insertBefore = row; break; }
+        }
+        if (insertBefore) list.insertBefore(dropIndicator, insertBefore);
+        else list.appendChild(dropIndicator);
+        dropIndicator.style.display = '';
+      });
+      list.addEventListener('dragleave', (e) => {
+        if (!list.contains(e.relatedTarget)) dropIndicator.style.display = 'none';
+      });
+      list.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropIndicator.style.display = 'none';
+        if (!_todoDragId) return;
+        const rows = Array.from(list.querySelectorAll('.todo-item:not(.dragging)'));
+        let insertBeforeId = null;
+        for (const row of rows) {
+          const rect = row.getBoundingClientRect();
+          if (e.clientY < rect.top + rect.height / 2) { insertBeforeId = row.dataset.noteId; break; }
+        }
+        const currentIds = active.map(i => i.note.id);
+        const fromIdx = currentIds.indexOf(_todoDragId);
+        if (fromIdx !== -1) currentIds.splice(fromIdx, 1);
+        if (insertBeforeId) {
+          const toIdx = currentIds.indexOf(insertBeforeId);
+          currentIds.splice(toIdx === -1 ? currentIds.length : toIdx, 0, _todoDragId);
+        } else {
+          currentIds.push(_todoDragId);
+        }
+        _saveTodoOrder(currentIds);
+        _todoDragId = null;
+        _clearTodoTimer();
+        render();
+      });
     }
 
-    // ── Completed items ──────────────────────────────────────────────────
+    // ── Completed items (collapsed by default) ───────────────────────────
     if (completed.length > 0) {
       const compHeader = document.createElement('div');
-      compHeader.className = 'todo-section-header todo-section-header--completed';
-      compHeader.textContent = `Completed (${completed.length})`;
+      compHeader.className = 'todo-section-header todo-section-header--completed todo-section-toggle';
+      const arrow = document.createElement('span');
+      arrow.className = 'todo-toggle-arrow';
+      arrow.textContent = _completedExpanded ? '▾' : '▸';
+      const compLabel = document.createElement('span');
+      compLabel.textContent = `Completed (${completed.length})`;
+      compHeader.appendChild(arrow);
+      compHeader.appendChild(compLabel);
       wrap.appendChild(compHeader);
       const compList = document.createElement('div');
       compList.className = 'todo-list';
-      completed.forEach(item => {
-        compList.appendChild(_makeTodoItem(item, true));
-      });
+      compList.style.display = _completedExpanded ? '' : 'none';
+      completed.forEach(item => compList.appendChild(_makeTodoItem(item, true)));
       wrap.appendChild(compList);
+      compHeader.addEventListener('click', () => {
+        _completedExpanded = !_completedExpanded;
+        arrow.textContent = _completedExpanded ? '▾' : '▸';
+        compList.style.display = _completedExpanded ? '' : 'none';
+      });
     }
 
     el.appendChild(cols);
@@ -2001,6 +2070,28 @@ const Dashboard = (() => {
     function _makeTodoItem({ note, task, team, project }, isDone) {
       const item = document.createElement('div');
       item.className = 'todo-item' + (isDone ? ' done' : '');
+      item.dataset.noteId = note.id;
+      if (note.priority) item.dataset.priority = note.priority;
+
+      // Drag handle (active items only)
+      if (!isDone) {
+        const handle = document.createElement('span');
+        handle.className = 'todo-drag-handle';
+        handle.textContent = '⠿';
+        handle.title = 'Drag to reorder';
+        item.appendChild(handle);
+        item.draggable = true;
+        item.addEventListener('dragstart', (e) => {
+          _todoDragId = note.id;
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', note.id);
+          setTimeout(() => item.classList.add('dragging'), 0);
+        });
+        item.addEventListener('dragend', () => {
+          item.classList.remove('dragging');
+          _todoDragId = null;
+        });
+      }
 
       // Checkbox
       const chk = document.createElement('div');
@@ -2052,9 +2143,9 @@ const Dashboard = (() => {
 
       item.appendChild(body);
 
-      // Click to navigate (not on checkbox)
+      // Click to navigate (not on checkbox or drag handle)
       item.addEventListener('click', (e) => {
-        if (e.target.closest('.todo-checkbox')) return;
+        if (e.target.closest('.todo-checkbox') || e.target.closest('.todo-drag-handle')) return;
         _navigate(task.id, project.id);
       });
 
