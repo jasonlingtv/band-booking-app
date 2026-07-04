@@ -1167,15 +1167,13 @@ a:hover { text-decoration: underline; }
 #app.notif-preview-open.comment-pane-open .overview-columns {
   max-width: calc(100% - max(45vw, 380px) - 300px - 24px);
 }
-/* Notifications on top, To Do below */
+/* Notifications on top, To Do below — both use base max-height/scroll unchanged */
 #app.notif-preview-open .overview-col--notif {
   order: -1;
-  max-height: none;
-  overflow-y: visible;
+  flex: 0 0 auto;
 }
 #app.notif-preview-open .overview-col--todo {
-  max-height: none;
-  overflow-y: visible;
+  flex: 0 0 auto;
 }
 
 .comment-pane-header {
