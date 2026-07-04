@@ -399,14 +399,18 @@ const ListView = (() => {
       const span = document.createElement('span');
       if (last) {
         span.className = 'task-note-text task-note-sent';
-        span.textContent = last.text;
         if (last.priority) {
           const dot = document.createElement('span');
-          dot.style.cssText = 'display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px;vertical-align:middle;flex-shrink:0;';
+          dot.style.cssText = 'display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:middle;flex-shrink:0;';
           const colours = { urgent_important: '#ef4444', important_not_urgent: '#3b82f6', urgent_not_important: '#22c55e', quick_info: '#9ca3af' };
           dot.style.background = colours[last.priority] || '#9ca3af';
-          span.prepend(dot);
+          span.appendChild(dot);
         }
+        const lbl = document.createElement('span');
+        lbl.className = 'task-note-sent-label';
+        lbl.textContent = 'LAST REMINDER: ';
+        span.appendChild(lbl);
+        span.appendChild(document.createTextNode(last.text));
       } else {
         span.className = 'task-note-text placeholder';
         span.textContent = 'Add a reminder…';

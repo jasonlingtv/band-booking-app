@@ -2010,7 +2010,11 @@ const DetailPanel = (() => {
       if (last) {
         const sent = document.createElement('span');
         sent.className = 'detail-reminder-sent';
-        sent.textContent = last.text;
+        const lbl = document.createElement('span');
+        lbl.className = 'detail-reminder-sent-label';
+        lbl.textContent = 'LAST REMINDER: ';
+        sent.appendChild(lbl);
+        sent.appendChild(document.createTextNode(last.text));
         wrap.appendChild(sent);
       } else {
         const ph = document.createElement('span');

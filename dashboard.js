@@ -1842,11 +1842,16 @@ const Dashboard = (() => {
       render();
     }
 
+    const _PRIO_RANK = { urgent_important: 0, important_not_urgent: 1, urgent_not_important: 2, quick_info: 3 };
+
     const allItems = _collectItems();
     const savedOrder = _getTodoOrder();
     const active = allItems
       .filter(i => !i.note.done)
       .sort((a, b) => {
+        const pa = _PRIO_RANK[a.note.priority] ?? 4;
+        const pb = _PRIO_RANK[b.note.priority] ?? 4;
+        if (pa !== pb) return pa - pb;
         const ai = savedOrder.indexOf(a.note.id);
         const bi = savedOrder.indexOf(b.note.id);
         if (ai === -1 && bi === -1) {
