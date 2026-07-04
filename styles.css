@@ -3539,10 +3539,10 @@ a:hover { text-decoration: underline; }
   display: flex; gap: 24px; padding: 8px 24px 24px; align-items: flex-start;
   transition: padding-right 0.2s ease;
 }
-#app.detail-panel-open .overview-columns {
+#app.notif-preview-open .overview-columns {
   padding-right: calc(max(45vw, 380px) + 16px);
 }
-#app.detail-panel-open.comment-pane-open .overview-columns {
+#app.notif-preview-open.comment-pane-open .overview-columns {
   padding-right: calc(max(45vw, 380px) + 316px);
 }
 .overview-col {

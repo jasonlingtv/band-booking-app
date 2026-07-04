@@ -58,6 +58,7 @@ const Dashboard = (() => {
         if (_previewTaskId !== null || _previewTemplateId !== null) {
           _previewTaskId = null;
           _previewTemplateId = null;
+          document.getElementById('app').classList.remove('notif-preview-open');
           DetailPanel.hide();
         }
         if (_activeTemplateRow) {
@@ -2104,6 +2105,7 @@ const Dashboard = (() => {
           clearTimeout(_hoverShowTimer);
           _hoverShowTimer = setTimeout(() => {
             _previewTaskId = task.id;
+            document.getElementById('app').classList.add('notif-preview-open');
             DetailPanel.render(task.id);
             setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
           }, 300);
@@ -2114,6 +2116,7 @@ const Dashboard = (() => {
           _hoverHideTimer = setTimeout(() => {
             if (!_mouseInPanel && _previewTaskId !== null) {
               _previewTaskId = null;
+              document.getElementById('app').classList.remove('notif-preview-open');
               DetailPanel.hide();
             }
           }, 350);
