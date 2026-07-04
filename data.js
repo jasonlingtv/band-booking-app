@@ -329,19 +329,31 @@ const DataLayer = (() => {
       }
     }
 
-    // 13. Seed test comment from Sarah on the first task found (for Unread Notifications demo)
-    const TEST_COMMENT_ID = 'test_sarah_1';
+    // 13. Seed test comments for Unread Notifications demo
+    const TEST_COMMENT_1 = ‘test_sarah_1’;
+    const TEST_COMMENT_2 = ‘test_mike_1’;
     seedLoop: for (const team of _data.teams) {
       for (const project of team.projects) {
         for (const section of project.sections) {
           for (const task of section.tasks) {
-            if (!(task.comments || []).some(c => c.id === TEST_COMMENT_ID)) {
-              if (!task.comments) task.comments = [];
+            if (!task.comments) task.comments = [];
+            if (!task.comments.some(c => c.id === TEST_COMMENT_1)) {
               task.comments.push({
-                id: TEST_COMMENT_ID,
-                sender: 'Sarah',
+                id: TEST_COMMENT_1,
+                sender: ‘Sarah’,
                 text: "Hey Jason — just checking in on this booking. Have you received the advance info from the venue yet? They mentioned sending it over last week but I haven’t seen it confirmed anywhere.",
                 timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                attachments: [],
+                thumbsUps: []
+              });
+              dirty = true;
+            }
+            if (!task.comments.some(c => c.id === TEST_COMMENT_2)) {
+              task.comments.push({
+                id: TEST_COMMENT_2,
+                sender: ‘Mike’,
+                text: "Also — the rider needs updating before we send it to the venue. The current one still has the old hospitality requirements. Can you check with the band what they need?",
+                timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
                 attachments: [],
                 thumbsUps: []
               });
