@@ -1156,21 +1156,26 @@ a:hover { text-decoration: underline; }
   width: 210px;
   min-width: 210px;
 }
-/* Notification preview: notifications column slides left and takes over full width;
-   To Do column animates down and out */
-.overview-col--todo {
-  transition: flex-basis 0.3s ease, max-width 0.3s ease, opacity 0.25s ease, transform 0.3s ease;
+/* Notification preview: stack columns vertically, fit snugly beside the task panel */
+#app.notif-preview-open .overview-columns {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: calc(100% - max(45vw, 380px) - 24px);
+  gap: 20px;
+  transition: max-width 0.25s ease;
+}
+#app.notif-preview-open.comment-pane-open .overview-columns {
+  max-width: calc(100% - max(45vw, 380px) - 300px - 24px);
+}
+/* Notifications on top, To Do below */
+#app.notif-preview-open .overview-col--notif {
+  order: -1;
+  max-height: none;
+  overflow-y: visible;
 }
 #app.notif-preview-open .overview-col--todo {
-  flex: 0 0 0px;
-  max-width: 0;
-  min-width: 0;
-  overflow: hidden;
-  opacity: 0;
-  transform: translateY(28px);
-}
-#app.notif-preview-open .overview-columns {
-  gap: 0;
+  max-height: none;
+  overflow-y: visible;
 }
 
 .comment-pane-header {
