@@ -1152,7 +1152,7 @@ a:hover { text-decoration: underline; }
   right: 300px;
   transition: right 0.2s ease, width 0.2s ease;
 }
-#app.comment-pane-open #sidebar {
+#app.comment-pane-open:not(.notif-preview-open) #sidebar {
   width: 210px;
   min-width: 210px;
 }
