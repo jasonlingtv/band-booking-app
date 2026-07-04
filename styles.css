@@ -1177,14 +1177,12 @@ a:hover { text-decoration: underline; }
   width: 100%;
   min-width: 0;
   max-height: none;
-  overflow-y: hidden;
 }
 #app.notif-preview-open .overview-col--todo {
   flex: 0 0 auto;
   width: 100%;
   min-width: 0;
   max-height: none;
-  overflow-y: hidden;
 }
 
 .comment-pane-header {
