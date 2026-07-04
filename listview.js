@@ -436,8 +436,7 @@ const ListView = (() => {
         const btn = document.createElement('button');
         btn.className = 'prio-dot-btn prio-dot-btn--' + cls;
         btn.textContent = label;
-        btn.addEventListener('mousedown', (e2) => e2.preventDefault());
-        btn.addEventListener('click', () => commitNote(id));
+        btn.addEventListener('mousedown', (e2) => { e2.preventDefault(); e2.stopPropagation(); commitNote(id); });
         strip.appendChild(btn);
       });
       col.appendChild(strip);

@@ -2049,8 +2049,7 @@ const DetailPanel = (() => {
         btn.className = 'prio-dot-btn prio-dot-btn--' + cls;
         btn.textContent = label;
         btn.title = _PRIO[id].label;
-        btn.addEventListener('mousedown', (e) => e.preventDefault());
-        btn.addEventListener('click', () => commitNote(id));
+        btn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); commitNote(id); });
         strip.appendChild(btn);
       });
       wrap.appendChild(strip);
