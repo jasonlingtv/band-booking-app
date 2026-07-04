@@ -3565,8 +3565,7 @@ a:hover { text-decoration: underline; }
   margin-bottom: 8px; cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
-.notif-item:hover { background: var(--bg-hover); border-color: var(--accent-blue-border, #93c5fd); }
-.notif-item.active { border-color: var(--accent-blue, #3b82f6); background: var(--accent-blue-bg, #eff6ff); }
+.notif-item:hover { background: var(--bg-hover); border-color: var(--text-secondary); }
 .notif-task-title {
   font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px;
 }

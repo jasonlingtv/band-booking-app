@@ -2098,13 +2098,29 @@ const Dashboard = (() => {
         _nf.appendChild(_ntb);
         item.appendChild(_nf);
 
+        item.addEventListener('mouseenter', () => {
+          clearTimeout(_hoverHideTimer);
+          _hoverHideTimer = null;
+          clearTimeout(_hoverShowTimer);
+          _hoverShowTimer = setTimeout(() => {
+            _previewTaskId = task.id;
+            DetailPanel.render(task.id);
+            setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
+          }, 300);
+        });
+        item.addEventListener('mouseleave', () => {
+          clearTimeout(_hoverShowTimer);
+          _hoverShowTimer = null;
+          _hoverHideTimer = setTimeout(() => {
+            if (!_mouseInPanel && _previewTaskId !== null) {
+              _previewTaskId = null;
+              DetailPanel.hide();
+            }
+          }, 350);
+        });
         item.addEventListener('click', (e) => {
           if (e.target.closest('.notif-thumbs-btn')) return;
-          notifCol.querySelectorAll('.notif-item.active').forEach(el => el.classList.remove('active'));
-          item.classList.add('active');
-          _previewTaskId = task.id;
-          DetailPanel.render(task.id);
-          setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
+          _navigate(task.id, project.id);
         });
 
         notifCol.appendChild(item);
