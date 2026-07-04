@@ -31,6 +31,19 @@ const Dashboard = (() => {
     if (_todoTimer) { clearInterval(_todoTimer); _todoTimer = null; }
   }
 
+  function _fitOverviewToPanel() {
+    const panel = document.getElementById('detail-panel');
+    const cols  = document.querySelector('.overview-columns');
+    if (!panel || !cols) return;
+    const gap = 16;
+    const available = panel.getBoundingClientRect().left - cols.getBoundingClientRect().left - gap;
+    cols.style.width = Math.max(available, 160) + 'px';
+  }
+  function _clearOverviewWidth() {
+    const cols = document.querySelector('.overview-columns');
+    if (cols) cols.style.width = '';
+  }
+
   function _cleanupPanelHoverListeners() {
     const panel = document.getElementById('detail-panel');
     if (panel && panel._dashTodoEnter) {
@@ -1810,6 +1823,7 @@ const Dashboard = (() => {
       _mouseInPanel = false;
       _previewTaskId = null;
       document.getElementById('app').classList.remove('notif-preview-open');
+      _clearOverviewWidth();
       DetailPanel.hide();
     });
 
@@ -2138,7 +2152,8 @@ const Dashboard = (() => {
             _previewTaskId = task.id;
             document.getElementById('app').classList.add('notif-preview-open');
             DetailPanel.render(task.id);
-            setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
+            setTimeout(() => { DetailPanel.openCommentPane(task.id); }, 30);
+            setTimeout(_fitOverviewToPanel, 80);
           }, 300);
         });
         item.addEventListener('mouseleave', () => {
@@ -2148,6 +2163,7 @@ const Dashboard = (() => {
             if (!_mouseInPanel && _previewTaskId !== null) {
               _previewTaskId = null;
               document.getElementById('app').classList.remove('notif-preview-open');
+              _clearOverviewWidth();
               DetailPanel.hide();
             }
           }, 350);
