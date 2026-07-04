@@ -490,19 +490,6 @@ const ListView = (() => {
       else if (key === 'notes') row.appendChild(_makeNotesCol(task));
     });
 
-    // Unread comment pulse
-    const taskComments = task.comments || [];
-    if (taskComments.length > 0) {
-      const cu = DetailPanel.getCurrentUser();
-      const hasUnread = taskComments.some(c => c.sender !== cu && !(c.thumbsUps || []).includes(cu));
-      if (hasUnread) {
-        const pulse = document.createElement('div');
-        pulse.className = 'comment-unread-pulse';
-        pulse.title = 'Unread comment';
-        row.appendChild(pulse);
-      }
-    }
-
     // Menu button
     const menuBtn = document.createElement('button');
     menuBtn.className = 'task-menu-btn';
