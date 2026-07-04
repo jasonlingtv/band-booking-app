@@ -2424,14 +2424,16 @@ a:hover { text-decoration: underline; }
 }
 
 .comment-unread-pulse {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 8px;
   height: 8px;
-  border-radius: 2px;
+  border-radius: 50%;
   background: var(--accent-blue);
-  flex-shrink: 0;
-  margin-left: auto;
-  margin-right: 6px;
   animation: comment-pulse 1.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* ── Dashboard tabs ───────────────────────────────────────────────────────── */
@@ -3562,7 +3564,8 @@ a:hover { text-decoration: underline; }
 
 /* ── To Do item priority left-border & hover tint ──────────────────────── */
 
-.todo-item { border-left: 3px solid transparent; }
+/* All items get a visible 3px left border; default=grey, priority overrides */
+.todo-item { border-left: 3px solid #e5e7eb; }
 .todo-item[data-priority="urgent_important"]     { border-left-color: #ef4444; }
 .todo-item[data-priority="important_not_urgent"] { border-left-color: #f97316; }
 .todo-item[data-priority="urgent_not_important"] { border-left-color: #22c55e; }
