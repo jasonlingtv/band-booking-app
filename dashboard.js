@@ -2069,6 +2069,23 @@ const Dashboard = (() => {
     });
     _notifs.sort((a, b) => (b.comment.timestamp || '') > (a.comment.timestamp || '') ? 1 : -1);
 
+    // Auto-advance panel when current task's notification was just acked away
+    if (document.getElementById('app').classList.contains('notif-preview-open') && _previewTaskId !== null) {
+      const stillInList = _notifs.some(n => n.task.id === _previewTaskId);
+      if (!stillInList) {
+        if (_notifs.length > 0) {
+          const _next = _notifs[0];
+          _previewTaskId = _next.task.id;
+          DetailPanel.render(_next.task.id);
+          setTimeout(() => DetailPanel.openCommentPane(_next.task.id), 50);
+        } else {
+          _previewTaskId = null;
+          document.getElementById('app').classList.remove('notif-preview-open');
+          DetailPanel.hide();
+        }
+      }
+    }
+
     if (!_notifs.length) {
       const _ne = document.createElement('p');
       _ne.className = 'dash-empty';
@@ -2122,14 +2139,23 @@ const Dashboard = (() => {
           clearTimeout(_hoverHideTimer);
           _hoverHideTimer = null;
           clearTimeout(_hoverShowTimer);
-          // Faster switch if column already in preview mode
-          const delay = document.getElementById('app').classList.contains('notif-preview-open') ? 120 : 300;
-          _hoverShowTimer = setTimeout(() => {
-            _previewTaskId = task.id;
-            document.getElementById('app').classList.add('notif-preview-open');
-            DetailPanel.render(task.id);
-            setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
-          }, delay);
+          _hoverShowTimer = null;
+          const appEl = document.getElementById('app');
+          if (appEl.classList.contains('notif-preview-open')) {
+            // Column already open — switch task immediately, no hide/re-show
+            if (_previewTaskId !== task.id) {
+              _previewTaskId = task.id;
+              DetailPanel.render(task.id);
+              setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
+            }
+          } else {
+            _hoverShowTimer = setTimeout(() => {
+              _previewTaskId = task.id;
+              appEl.classList.add('notif-preview-open');
+              DetailPanel.render(task.id);
+              setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
+            }, 300);
+          }
         });
         item.addEventListener('mouseleave', (e) => {
           clearTimeout(_hoverShowTimer);

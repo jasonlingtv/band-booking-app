@@ -3658,11 +3658,12 @@ a:hover { text-decoration: underline; }
   transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .comment-ack-btn:hover:not(.acked):not(:disabled) {
-  background: #fef9c3; border-color: #fde047; color: #92400e;
+  background: var(--bg-hover); border-color: #9ca3af;
 }
-.comment-ack-btn.acked, .comment-ack-btn:disabled {
+.comment-ack-btn.acked {
   background: #fef9c3; border-color: #fde047; color: #92400e; cursor: default;
 }
+.comment-ack-btn:disabled:not(.acked) { cursor: default; opacity: 0.5; }
 
 /* ── To Do drag handle ──────────────────────────────────────────────────── */
 
