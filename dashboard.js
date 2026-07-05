@@ -2142,11 +2142,13 @@ const Dashboard = (() => {
           _hoverShowTimer = null;
           const appEl = document.getElementById('app');
           if (appEl.classList.contains('notif-preview-open')) {
-            // Column already open — switch task immediately, no hide/re-show
+            // Column already open — switch task without any gap
+            // render() removes comment-pane-open; calling openCommentPane immediately
+            // in the same tick means the browser never sees it close
             if (_previewTaskId !== task.id) {
               _previewTaskId = task.id;
               DetailPanel.render(task.id);
-              setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
+              DetailPanel.openCommentPane(task.id);
             }
           } else {
             _hoverShowTimer = setTimeout(() => {
