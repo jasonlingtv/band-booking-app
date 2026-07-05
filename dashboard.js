@@ -1789,6 +1789,7 @@ const Dashboard = (() => {
 
   function _renderTodo(el) {
     _setupPanelHoverListeners();
+    const _currentUser = DetailPanel.getCurrentUser();
 
     // ── Two-column layout ─────────────────────────────────────────────────────
     const cols = document.createElement('div');
@@ -2052,7 +2053,6 @@ const Dashboard = (() => {
     el.appendChild(cols);
 
     // ── Notifications column ──────────────────────────────────────────────────
-    const _currentUser = DetailPanel.getCurrentUser();
     const _notifs = [];
     DataLayer.getTeams().forEach(team => {
       (team.projects || []).forEach(project => {
