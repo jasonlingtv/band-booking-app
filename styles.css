@@ -2634,11 +2634,37 @@ a:hover { text-decoration: underline; }
   margin-top: 1px;
 }
 
-.todo-source {
-  font-size: 10px;
+.todo-attribution {
+  font-size: 11px;
   color: var(--text-placeholder);
-  font-style: italic;
   margin-top: 1px;
+}
+
+.todo-check-btn {
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  align-self: flex-end;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.todo-check-btn:hover {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+.todo-check-btn.checked {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #fff;
 }
 
 /* ── Task Reminder — sent (greyed preview) ────────────────────────────────── */
@@ -3614,12 +3640,12 @@ a:hover { text-decoration: underline; }
 .notif-age { flex: 1; }
 .notif-thumbs-btn {
   background: none; border: 1px solid var(--border); border-radius: 6px;
-  padding: 3px 8px; font-size: 14px; cursor: pointer; line-height: 1;
-  transition: background 0.12s, border-color 0.12s; flex-shrink: 0;
+  padding: 3px 8px; font-size: 13px; cursor: pointer; line-height: 1;
+  transition: background 0.12s, border-color 0.12s, color 0.12s; flex-shrink: 0;
+  color: #9ca3af;
 }
-.notif-thumbs-btn:hover {
-  background: var(--accent-blue-bg); border-color: var(--accent-blue-border);
-}
+.notif-thumbs-btn:hover { background: #fef9c3; border-color: #fde047; color: #92400e; }
+.notif-thumbs-btn.acked { background: #fef9c3; border-color: #fde047; color: #92400e; }
 
 /* ── Comment thumbs-up button (in comment pane) ──────────────────────────── */
 

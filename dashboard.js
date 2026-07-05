@@ -2059,7 +2059,7 @@ const Dashboard = (() => {
         (project.sections || []).forEach(section => {
           (section.tasks || []).forEach(task => {
             (task.comments || []).forEach(comment => {
-              if (comment.sender !== _currentUser && !(comment.thumbsUps || []).includes(_currentUser)) {
+              if (comment.sender !== _currentUser) {
                 _notifs.push({ comment, task, team, project });
               }
             });
@@ -2108,10 +2108,14 @@ const Dashboard = (() => {
         _na.textContent = comment.timestamp ? _humanAge(comment.timestamp) : '';
         _nf.appendChild(_na);
 
+        const thumbsUps = comment.thumbsUps || [];
+        const iAcked = thumbsUps.includes(_currentUser);
         const _ntb = document.createElement('button');
-        _ntb.className = 'notif-thumbs-btn';
-        _ntb.textContent = '👍';
-        _ntb.title = 'Acknowledge';
+        _ntb.className = 'notif-thumbs-btn' + (iAcked ? ' acked' : '');
+        _ntb.textContent = thumbsUps.length > 0 ? '👍 ' + thumbsUps.length : '👍';
+        _ntb.title = thumbsUps.length
+          ? thumbsUps.map(u => u === _currentUser ? 'You' : u).join(', ')
+          : 'Acknowledge';
         _ntb.addEventListener('click', (e) => {
           e.stopPropagation();
           const t = DataLayer.getTask(task.id);
@@ -2198,15 +2202,14 @@ const Dashboard = (() => {
         });
       }
 
-      // Checkbox
-      const chk = document.createElement('div');
-      chk.className = 'todo-checkbox' + (isDone ? ' checked' : '');
-      chk.addEventListener('click', (e) => { e.stopPropagation(); _toggleDone(note.id, task.id, isDone); });
-      item.appendChild(chk);
-
       // Text content
       const body = document.createElement('div');
       body.className = 'todo-body';
+
+      const taskName = document.createElement('div');
+      taskName.className = 'todo-task-name';
+      taskName.textContent = task.title || '(Untitled)';
+      body.appendChild(taskName);
 
       const noteText = document.createElement('div');
       noteText.className = 'todo-note';
@@ -2216,16 +2219,6 @@ const Dashboard = (() => {
       const meta = document.createElement('div');
       meta.className = 'todo-meta';
 
-      const taskName = document.createElement('span');
-      taskName.className = 'todo-task-name';
-      taskName.textContent = task.title || '(Untitled)';
-      meta.appendChild(taskName);
-
-      const sep = document.createElement('span');
-      sep.className = 'todo-sep';
-      sep.textContent = '·';
-      meta.appendChild(sep);
-
       const proj = document.createElement('span');
       proj.className = 'todo-project';
       proj.textContent = team.name + ' / ' + project.name;
@@ -2233,24 +2226,35 @@ const Dashboard = (() => {
 
       body.appendChild(meta);
 
+      const footer = document.createElement('div');
+      footer.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:4px;';
+
+      const attribution = document.createElement('span');
+      attribution.className = 'todo-attribution';
+      const sender = note.sender || _currentUser;
+      attribution.textContent = sender === _currentUser ? 'Reminder from you' : 'Reminder from ' + sender;
+      footer.appendChild(attribution);
+
       const age = document.createElement('span');
       age.className = 'todo-age';
       age.dataset.ts = note.timestamp || '';
       age.textContent = note.timestamp ? _humanAge(note.timestamp) : '';
-      body.appendChild(age);
+      footer.appendChild(age);
 
-      if (note.source) {
-        const src = document.createElement('span');
-        src.className = 'todo-source';
-        src.textContent = note.source === 'panel' ? 'via Task panel' : 'via Task Reminder column';
-        body.appendChild(src);
-      }
-
+      body.appendChild(footer);
       item.appendChild(body);
 
-      // Click to navigate (not on checkbox or drag handle)
+      // Checkmark button — bottom-right of card
+      const chk = document.createElement('button');
+      chk.className = 'todo-check-btn' + (isDone ? ' checked' : '');
+      chk.textContent = '✓';
+      chk.title = isDone ? 'Mark as not done' : 'Mark as done';
+      chk.addEventListener('click', (e) => { e.stopPropagation(); _toggleDone(note.id, task.id, isDone); });
+      item.appendChild(chk);
+
+      // Click to navigate (not on checkmark or drag handle)
       item.addEventListener('click', (e) => {
-        if (e.target.closest('.todo-checkbox') || e.target.closest('.todo-drag-handle')) return;
+        if (e.target.closest('.todo-check-btn') || e.target.closest('.todo-drag-handle')) return;
         _navigate(task.id, project.id);
       });
 
