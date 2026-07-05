@@ -2628,7 +2628,6 @@ a:hover { text-decoration: underline; }
 }
 
 .todo-age {
-  flex: 1;
   font-size: 11px;
   color: var(--text-placeholder);
 }
@@ -2636,7 +2635,7 @@ a:hover { text-decoration: underline; }
 .todo-attribution {
   font-size: 11px;
   color: var(--text-placeholder);
-  margin-top: 1px;
+  flex: 1;
 }
 
 .todo-check-btn {
@@ -3637,14 +3636,16 @@ a:hover { text-decoration: underline; }
 }
 .notif-sender { font-weight: 500; color: var(--text); }
 .notif-age { flex: 1; }
-.notif-thumbs-btn {
-  background: none; border: 1px solid var(--border); border-radius: 6px;
-  padding: 3px 8px; font-size: 13px; cursor: pointer; line-height: 1;
-  transition: background 0.12s, border-color 0.12s, color 0.12s; flex-shrink: 0;
-  color: #9ca3af;
+.notif-nudge {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #92400e;
+  line-height: 1.4;
 }
-.notif-thumbs-btn:hover { background: #fef9c3; border-color: #fde047; color: #92400e; }
-.notif-thumbs-btn.acked { background: #fef9c3; border-color: #fde047; color: #92400e; }
 
 /* ── Comment thumbs-up button (in comment pane) ──────────────────────────── */
 

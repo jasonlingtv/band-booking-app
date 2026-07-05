@@ -2107,32 +2107,16 @@ const Dashboard = (() => {
         _na.dataset.ts = comment.timestamp || '';
         _na.textContent = comment.timestamp ? _humanAge(comment.timestamp) : '';
         _nf.appendChild(_na);
-
-        const thumbsUps = comment.thumbsUps || [];
-        const iAcked = thumbsUps.includes(_currentUser);
-        const _ntb = document.createElement('button');
-        _ntb.className = 'notif-thumbs-btn' + (iAcked ? ' acked' : '');
-        _ntb.textContent = thumbsUps.length > 0 ? '👍 ' + thumbsUps.length : '👍';
-        _ntb.title = thumbsUps.length
-          ? thumbsUps.map(u => u === _currentUser ? 'You' : u).join(', ')
-          : 'Acknowledge';
-        _ntb.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const t = DataLayer.getTask(task.id);
-          if (!t) return;
-          const updatedComments = (t.comments || []).map(c => {
-            if (c.id !== comment.id) return c;
-            const tu = [...(c.thumbsUps || [])];
-            if (!tu.includes(_currentUser)) tu.push(_currentUser);
-            return Object.assign({}, c, { thumbsUps: tu });
-          });
-          DataLayer.updateTask(task.id, { comments: updatedComments });
-          _clearTodoTimer();
-          render();
-          Utils.EventBus.emit('listview:refresh');
-        });
-        _nf.appendChild(_ntb);
         item.appendChild(_nf);
+
+        // Nudge for notifications older than 1 day
+        const _tsMs = comment.timestamp ? Date.parse(comment.timestamp) : 0;
+        if (_tsMs && (Date.now() - _tsMs) > 24 * 60 * 60 * 1000) {
+          const _nudge = document.createElement('div');
+          _nudge.className = 'notif-nudge';
+          _nudge.textContent = 'You have a notification waiting — give a thumbs up in the comments to acknowledge you read it.';
+          item.appendChild(_nudge);
+        }
 
         item.addEventListener('mouseenter', () => {
           clearTimeout(_hoverHideTimer);

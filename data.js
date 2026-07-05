@@ -331,16 +331,26 @@ const DataLayer = (() => {
 
     // 13. Seed test comments for Unread Notifications demo
     const _seedComments = [
-      { id: 'tc_sarah_1', sender: 'Sarah',  mins: 120, text: "Hey Jason — just checking in on this booking. Have you received the advance info from the venue yet? They mentioned sending it over last week but I haven't seen it confirmed anywhere." },
-      { id: 'tc_mike_1',  sender: 'Mike',   mins: 45,  text: "Also — the rider needs updating before we send it to the venue. The current one still has the old hospitality requirements. Can you check with the band what they need?" },
-      { id: 'tc_dave_1',  sender: 'Dave',   mins: 200, text: "Quick heads up — the venue changed their stage dimensions. The PA hang points are now 6m not 8m. Production will need to know ASAP for the spec sheet." },
-      { id: 'tc_lisa_1',  sender: 'Lisa',   mins: 360, text: "Has anyone confirmed the merch split with the promoter? I've asked twice and still haven't got a signed copy back. Can you chase them today?" },
-      { id: 'tc_tom_1',   sender: 'Tom',    mins: 30,  text: "Soundcheck has been pushed to 4pm instead of 3pm. Venue says the previous act is running over. Let the band know." },
-      { id: 'tc_emma_1',  sender: 'Emma',   mins: 480, text: "Tour bus company needs a final passenger manifest by end of day Thursday. We're still missing two names from the crew list — can you confirm who's travelling?" },
-      { id: 'tc_chris_1', sender: 'Chris',  mins: 90,  text: "The venue contract is still unsigned on their end. I've chased the promoter twice. If we don't hear back today we should escalate — the hold expires Friday." },
-      { id: 'tc_jake_1',  sender: 'Jake',   mins: 15,  text: "Support act just confirmed their set time. They're on at 7:30, 30 mins, no encore. Door time is still 7pm. Can you update the runsheet?" },
-      { id: 'tc_anna_1',  sender: 'Anna',   mins: 600, text: "We're still missing the band's press photo for the venue's social. They need a hi-res version (min 2000px wide). The one on file is from 2022 — do you have a newer one?" },
-      { id: 'tc_sam_1',   sender: 'Sam',    mins: 10,  text: "The promoter just called — they need final ticket numbers by noon tomorrow for their print run. Current Eventbrite count is 312 but that doesn't include comp tickets. Can you get the final figure?" },
+      { id: 'tc_sarah_1', sender: 'Sarah',  mins: 120,  text: "Hey Jason — just checking in on this booking. Have you received the advance info from the venue yet? They mentioned sending it over last week but I haven't seen it confirmed anywhere." },
+      { id: 'tc_mike_1',  sender: 'Mike',   mins: 45,   text: "Also — the rider needs updating before we send it to the venue. The current one still has the old hospitality requirements. Can you check with the band what they need?" },
+      { id: 'tc_dave_1',  sender: 'Dave',   mins: 200,  text: "Quick heads up — the venue changed their stage dimensions. The PA hang points are now 6m not 8m. Production will need to know ASAP for the spec sheet." },
+      { id: 'tc_lisa_1',  sender: 'Lisa',   mins: 360,  text: "Has anyone confirmed the merch split with the promoter? I've asked twice and still haven't got a signed copy back. Can you chase them today?" },
+      { id: 'tc_tom_1',   sender: 'Tom',    mins: 30,   text: "Soundcheck has been pushed to 4pm instead of 3pm. Venue says the previous act is running over. Let the band know." },
+      { id: 'tc_emma_1',  sender: 'Emma',   mins: 480,  text: "Tour bus company needs a final passenger manifest by end of day Thursday. We're still missing two names from the crew list — can you confirm who's travelling?" },
+      { id: 'tc_chris_1', sender: 'Chris',  mins: 90,   text: "The venue contract is still unsigned on their end. I've chased the promoter twice. If we don't hear back today we should escalate — the hold expires Friday." },
+      { id: 'tc_jake_1',  sender: 'Jake',   mins: 15,   text: "Support act just confirmed their set time. They're on at 7:30, 30 mins, no encore. Door time is still 7pm. Can you update the runsheet?" },
+      { id: 'tc_anna_1',  sender: 'Anna',   mins: 600,  text: "We're still missing the band's press photo for the venue's social. They need a hi-res version (min 2000px wide). The one on file is from 2022 — do you have a newer one?" },
+      { id: 'tc_sam_1',   sender: 'Sam',    mins: 10,   text: "The promoter just called — they need final ticket numbers by noon tomorrow for their print run. Current Eventbrite count is 312 but that doesn't include comp tickets. Can you get the final figure?" },
+      { id: 'tc2_rachel_1', sender: 'Rachel', mins: 25,   text: "The support act's guest list is 12 people over what the venue allows. Can you call the promoter and get that sorted before tomorrow?" },
+      { id: 'tc2_ben_1',    sender: 'Ben',    mins: 55,   text: "Backline confirmed for Saturday but they need the exact stage time 48 hours out. What's the current schedule looking like?" },
+      { id: 'tc2_amy_1',    sender: 'Amy',    mins: 150,  text: "The venue just emailed — they want a copy of the band's PLI certificate before they'll open the stage. Do you have it on file?" },
+      { id: 'tc2_dan_1',    sender: 'Dan',    mins: 320,  text: "Promoter is asking if the band can do a 15 min acoustic set in the foyer before doors. They're offering an extra 200 for it. Worth asking the band?" },
+      { id: 'tc2_kat_1',    sender: 'Kat',    mins: 8,    text: "Just FYI — the venue's wifi password is 'soundcheck22'. I've passed it to the crew but thought you should have it too." },
+      { id: 'tc2_rob_1',    sender: 'Rob',    mins: 75,   text: "We're short on stage hands for load-in on Sunday. Can you see if anyone from the local crew list is available? Need at least 3 people by 9am." },
+      { id: 'tc2_nina_1',   sender: 'Nina',   mins: 420,  text: "The band's hotel checkout is at 11am but the van isn't arriving until 1pm. Can we arrange a late checkout or luggage storage with the hotel?" },
+      { id: 'tc2_carl_1',   sender: 'Carl',   mins: 18,   text: "Merch stock just arrived at the venue. Two boxes are damaged in transit. I've photographed everything — do you want me to file the claim or will you handle it?" },
+      { id: 'tc2_jess_1',   sender: 'Jess',   mins: 260,  text: "Radio station wants a 10 minute phoner with the singer tomorrow at 2pm. They're flexible on time if that doesn't work. Can you confirm?" },
+      { id: 'tc2_will_1',   sender: 'Will',   mins: 5,    text: "Just landed. Heading to the venue now. ETA 45 mins. Can someone let the production manager know I'm on my way?" },
     ];
     seedLoop: for (const team of _data.teams) {
       for (const project of team.projects) {
