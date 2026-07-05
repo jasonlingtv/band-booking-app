@@ -2138,22 +2138,23 @@ const DetailPanel = (() => {
     thread.className = 'comment-pane-thread';
     pane.appendChild(thread);
 
-    function renderPane() {
+    function renderPane(scrollToBottom) {
+      const savedScroll = thread.scrollTop;
       thread.innerHTML = '';
       const t = DataLayer.getTask(task.id);
       const ack = (commentId) => _acknowledgeComment(task.id, commentId);
       (t ? (t.comments || []) : []).forEach(c => thread.appendChild(_makeCommentBubble(c, ack)));
-      thread.scrollTop = thread.scrollHeight;
+      thread.scrollTop = scrollToBottom ? thread.scrollHeight : savedScroll;
     }
 
-    _refreshPaneComments = renderPane;
+    _refreshPaneComments = () => renderPane(false);
 
     pane.appendChild(_makeCommentInputArea(task.id, () => {
-      renderPane();
+      renderPane(true);
       if (_refreshInlineComments) _refreshInlineComments();
     }));
 
-    renderPane();
+    renderPane(true);
 
     // Hide inline comment section — all comments are now in the pane
     const detailBottom = document.getElementById('detail-bottom');
