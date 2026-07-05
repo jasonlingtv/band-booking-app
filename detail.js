@@ -1853,11 +1853,12 @@ const DetailPanel = (() => {
       ackRow.className = 'comment-ack-row';
       const ackBtn = document.createElement('button');
       ackBtn.className = 'comment-ack-btn' + (iAcked ? ' acked' : '');
-      ackBtn.textContent = iAcked ? '👍 ' + thumbsUps.length : '👍';
-      ackBtn.title = iAcked ? 'Acknowledged' : 'Acknowledge';
+      ackBtn.textContent = thumbsUps.length > 0 ? '👍 ' + thumbsUps.length : '👍';
+      const _ackerNames = thumbsUps.map(u => u === CURRENT_USER ? 'You' : u);
+      ackBtn.title = _ackerNames.length ? _ackerNames.join(', ') + ' acknowledged' : 'Acknowledge';
       if (!iAcked && onAcknowledge) {
         ackBtn.addEventListener('click', () => onAcknowledge(c.id));
-      } else {
+      } else if (iAcked) {
         ackBtn.disabled = true;
       }
       ackRow.appendChild(ackBtn);

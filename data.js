@@ -352,21 +352,28 @@ const DataLayer = (() => {
       { id: 'tc2_jess_1',   sender: 'Jess',   mins: 260,  text: "Radio station wants a 10 minute phoner with the singer tomorrow at 2pm. They're flexible on time if that doesn't work. Can you confirm?" },
       { id: 'tc2_will_1',   sender: 'Will',   mins: 5,    text: "Just landed. Heading to the venue now. ETA 45 mins. Can someone let the production manager know I'm on my way?" },
     ];
-    seedLoop: for (const team of _data.teams) {
+    // Collect up to 10 tasks to spread comments across
+    const _seedTasks = [];
+    outerSeedLoop: for (const team of _data.teams) {
       for (const project of team.projects) {
         for (const section of project.sections) {
           for (const task of section.tasks) {
             if (!task.comments) task.comments = [];
-            _seedComments.forEach(sc => {
-              if (!task.comments.some(c => c.id === sc.id)) {
-                task.comments.push({ id: sc.id, sender: sc.sender, text: sc.text, timestamp: new Date(Date.now() - sc.mins * 60 * 1000).toISOString(), attachments: [], thumbsUps: [] });
-                dirty = true;
-              }
-            });
-            break seedLoop;
+            _seedTasks.push(task);
+            if (_seedTasks.length >= 10) break outerSeedLoop;
           }
         }
       }
+    }
+    // Pair comments and assign one pair per task
+    for (let i = 0; i < _seedComments.length; i += 2) {
+      const t = _seedTasks[Math.floor(i / 2) % (_seedTasks.length || 1)];
+      [_seedComments[i], _seedComments[i + 1]].forEach(sc => {
+        if (sc && t && !t.comments.some(c => c.id === sc.id)) {
+          t.comments.push({ id: sc.id, sender: sc.sender, text: sc.text, timestamp: new Date(Date.now() - sc.mins * 60 * 1000).toISOString(), attachments: [], thumbsUps: [] });
+          dirty = true;
+        }
+      });
     }
 
     if (dirty) saveData();

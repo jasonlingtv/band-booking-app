@@ -2122,16 +2122,20 @@ const Dashboard = (() => {
           clearTimeout(_hoverHideTimer);
           _hoverHideTimer = null;
           clearTimeout(_hoverShowTimer);
+          // Faster switch if column already in preview mode
+          const delay = document.getElementById('app').classList.contains('notif-preview-open') ? 120 : 300;
           _hoverShowTimer = setTimeout(() => {
             _previewTaskId = task.id;
             document.getElementById('app').classList.add('notif-preview-open');
             DetailPanel.render(task.id);
             setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
-          }, 300);
+          }, delay);
         });
-        item.addEventListener('mouseleave', () => {
+        item.addEventListener('mouseleave', (e) => {
           clearTimeout(_hoverShowTimer);
           _hoverShowTimer = null;
+          // Ignore if mouse is still within the notification column (moving between items)
+          if (notifCol.contains(e.relatedTarget)) return;
           _hoverHideTimer = setTimeout(() => {
             if (!_mouseInPanel && _previewTaskId !== null) {
               _previewTaskId = null;
@@ -2148,6 +2152,20 @@ const Dashboard = (() => {
         notifCol.appendChild(item);
       });
     }
+
+    // Column-level mouseleave: fires when mouse fully exits the notification column
+    notifCol.addEventListener('mouseleave', (e) => {
+      if (notifCol.contains(e.relatedTarget)) return;
+      clearTimeout(_hoverShowTimer);
+      _hoverShowTimer = null;
+      _hoverHideTimer = setTimeout(() => {
+        if (!_mouseInPanel && _previewTaskId !== null) {
+          _previewTaskId = null;
+          document.getElementById('app').classList.remove('notif-preview-open');
+          DetailPanel.hide();
+        }
+      }, 350);
+    });
 
     // Live-updating age timer (covers both To Do ages and notification ages)
     const ageEls = cols.querySelectorAll('.todo-age, .notif-age');
