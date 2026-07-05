@@ -376,6 +376,34 @@ const DataLayer = (() => {
       });
     }
 
+    // 14. Seed tc3 demo comments — fresh IDs, some pre-acked by others to show grey+count
+    const _tc3 = [
+      { id: 'tc3_a', sender: 'Sarah',  mins: 12,  thumbsUps: [],               text: "Just confirming — load-in is 10am Saturday, right? I need to let the lighting crew know ASAP." },
+      { id: 'tc3_b', sender: 'Mike',   mins: 40,  thumbsUps: ['Sarah'],         text: "Venue just sent the updated capacity. Max 350 standing. That changes the ticket split — can you check with the promoter?" },
+      { id: 'tc3_c', sender: 'Dave',   mins: 95,  thumbsUps: ['Sarah', 'Mike'], text: "Band needs a dedicated dressing room by 2pm for press photos. Does the venue have space or do we need to arrange something?" },
+      { id: 'tc3_d', sender: 'Lisa',   mins: 7,   thumbsUps: [],               text: "The set list has changed — they're dropping the encore and adding two songs in the main set. I'll send the updated version now." },
+      { id: 'tc3_e', sender: 'Tom',    mins: 180, thumbsUps: ['Mike'],          text: "Catering for the crew — can we confirm whether the venue is covering it or if we need to arrange separately? I've got 8 people." },
+    ];
+    let _tc3Task = null;
+    tc3Loop: for (const team of _data.teams) {
+      for (const project of team.projects) {
+        for (const section of project.sections) {
+          for (const task of section.tasks) {
+            if (!task.comments) task.comments = [];
+            _tc3Task = task; break tc3Loop;
+          }
+        }
+      }
+    }
+    if (_tc3Task) {
+      _tc3.forEach(sc => {
+        if (!_tc3Task.comments.some(c => c.id === sc.id)) {
+          _tc3Task.comments.push({ id: sc.id, sender: sc.sender, text: sc.text, timestamp: new Date(Date.now() - sc.mins * 60 * 1000).toISOString(), attachments: [], thumbsUps: sc.thumbsUps });
+          dirty = true;
+        }
+      });
+    }
+
     if (dirty) saveData();
   }
 
