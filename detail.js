@@ -57,21 +57,24 @@ const DetailPanel = (() => {
 
   // ── Main render ───────────────────────────────────────────────────────────
 
-  function render(taskId) {
+  function render(taskId, opts) {
+    const keepCommentPane = opts && opts.keepCommentPane;
     _editingActive = false;
     document.getElementById('app').classList.add('detail-panel-open');
     const isNewTask = taskId !== _accordionTaskId;
     if (isNewTask) {
       _accordionTaskId = taskId;
-      const pane = document.getElementById('comment-pane');
-      if (pane) {
-        document.getElementById('app').classList.remove('comment-pane-open');
-        _refreshPaneComments = null;
-        pane.innerHTML = '';
-        delete pane.dataset.taskId;
+      if (!keepCommentPane) {
+        const pane = document.getElementById('comment-pane');
+        if (pane) {
+          document.getElementById('app').classList.remove('comment-pane-open');
+          _refreshPaneComments = null;
+          pane.innerHTML = '';
+          delete pane.dataset.taskId;
+        }
+        const bottom = document.getElementById('detail-bottom');
+        if (bottom) bottom.style.display = '';
       }
-      const bottom = document.getElementById('detail-bottom');
-      if (bottom) bottom.style.display = '';
     }
     const panel = document.getElementById('detail-panel');
     const content = document.getElementById('detail-content');
