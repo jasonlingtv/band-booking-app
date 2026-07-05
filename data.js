@@ -330,35 +330,29 @@ const DataLayer = (() => {
     }
 
     // 13. Seed test comments for Unread Notifications demo
-    const TEST_COMMENT_1 = 'test_sarah_1';
-    const TEST_COMMENT_2 = 'test_mike_1';
+    const _seedComments = [
+      { id: 'tc_sarah_1', sender: 'Sarah',  mins: 120, text: "Hey Jason — just checking in on this booking. Have you received the advance info from the venue yet? They mentioned sending it over last week but I haven't seen it confirmed anywhere." },
+      { id: 'tc_mike_1',  sender: 'Mike',   mins: 45,  text: "Also — the rider needs updating before we send it to the venue. The current one still has the old hospitality requirements. Can you check with the band what they need?" },
+      { id: 'tc_dave_1',  sender: 'Dave',   mins: 200, text: "Quick heads up — the venue changed their stage dimensions. The PA hang points are now 6m not 8m. Production will need to know ASAP for the spec sheet." },
+      { id: 'tc_lisa_1',  sender: 'Lisa',   mins: 360, text: "Has anyone confirmed the merch split with the promoter? I've asked twice and still haven't got a signed copy back. Can you chase them today?" },
+      { id: 'tc_tom_1',   sender: 'Tom',    mins: 30,  text: "Soundcheck has been pushed to 4pm instead of 3pm. Venue says the previous act is running over. Let the band know." },
+      { id: 'tc_emma_1',  sender: 'Emma',   mins: 480, text: "Tour bus company needs a final passenger manifest by end of day Thursday. We're still missing two names from the crew list — can you confirm who's travelling?" },
+      { id: 'tc_chris_1', sender: 'Chris',  mins: 90,  text: "The venue contract is still unsigned on their end. I've chased the promoter twice. If we don't hear back today we should escalate — the hold expires Friday." },
+      { id: 'tc_jake_1',  sender: 'Jake',   mins: 15,  text: "Support act just confirmed their set time. They're on at 7:30, 30 mins, no encore. Door time is still 7pm. Can you update the runsheet?" },
+      { id: 'tc_anna_1',  sender: 'Anna',   mins: 600, text: "We're still missing the band's press photo for the venue's social. They need a hi-res version (min 2000px wide). The one on file is from 2022 — do you have a newer one?" },
+      { id: 'tc_sam_1',   sender: 'Sam',    mins: 10,  text: "The promoter just called — they need final ticket numbers by noon tomorrow for their print run. Current Eventbrite count is 312 but that doesn't include comp tickets. Can you get the final figure?" },
+    ];
     seedLoop: for (const team of _data.teams) {
       for (const project of team.projects) {
         for (const section of project.sections) {
           for (const task of section.tasks) {
             if (!task.comments) task.comments = [];
-            if (!task.comments.some(c => c.id === TEST_COMMENT_1)) {
-              task.comments.push({
-                id: TEST_COMMENT_1,
-                sender: 'Sarah',
-                text: "Hey Jason — just checking in on this booking. Have you received the advance info from the venue yet? They mentioned sending it over last week but I haven't seen it confirmed anywhere.",
-                timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-                attachments: [],
-                thumbsUps: []
-              });
-              dirty = true;
-            }
-            if (!task.comments.some(c => c.id === TEST_COMMENT_2)) {
-              task.comments.push({
-                id: TEST_COMMENT_2,
-                sender: 'Mike',
-                text: "Also — the rider needs updating before we send it to the venue. The current one still has the old hospitality requirements. Can you check with the band what they need?",
-                timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-                attachments: [],
-                thumbsUps: []
-              });
-              dirty = true;
-            }
+            _seedComments.forEach(sc => {
+              if (!task.comments.some(c => c.id === sc.id)) {
+                task.comments.push({ id: sc.id, sender: sc.sender, text: sc.text, timestamp: new Date(Date.now() - sc.mins * 60 * 1000).toISOString(), attachments: [], thumbsUps: [] });
+                dirty = true;
+              }
+            });
             break seedLoop;
           }
         }

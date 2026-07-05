@@ -2591,47 +2591,46 @@ a:hover { text-decoration: underline; }
 .todo-body {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.todo-note {
-  font-size: 13px;
-  color: var(--text);
-  line-height: 1.4;
-  word-break: break-word;
-}
-
-.todo-item.done .todo-note { text-decoration: line-through; }
-
-.todo-meta {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
 }
 
 .todo-task-name {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.todo-sep {
-  font-size: 11px;
-  color: var(--text-placeholder);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
 }
 
 .todo-project {
   font-size: 11px;
-  color: var(--text-placeholder);
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.todo-note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.todo-item.done .todo-note { text-decoration: line-through; }
+
+.todo-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .todo-age {
+  flex: 1;
   font-size: 11px;
   color: var(--text-placeholder);
-  margin-top: 1px;
 }
 
 .todo-attribution {
@@ -3654,15 +3653,14 @@ a:hover { text-decoration: underline; }
 }
 .comment-ack-btn {
   background: none; border: 1px solid var(--border); border-radius: 6px;
-  padding: 2px 8px; font-size: 12px; cursor: pointer; color: var(--text-secondary);
-  transition: background 0.12s, border-color 0.12s;
+  padding: 2px 8px; font-size: 12px; cursor: pointer; color: #9ca3af;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .comment-ack-btn:hover:not(.acked):not(:disabled) {
-  background: var(--accent-blue-bg); border-color: var(--accent-blue-border);
+  background: #fef9c3; border-color: #fde047; color: #92400e;
 }
 .comment-ack-btn.acked, .comment-ack-btn:disabled {
-  background: var(--accent-blue-bg); border-color: var(--accent-blue-border);
-  color: var(--accent-blue); cursor: default;
+  background: #fef9c3; border-color: #fde047; color: #92400e; cursor: default;
 }
 
 /* ── To Do drag handle ──────────────────────────────────────────────────── */

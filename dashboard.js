@@ -2059,7 +2059,7 @@ const Dashboard = (() => {
         (project.sections || []).forEach(section => {
           (section.tasks || []).forEach(task => {
             (task.comments || []).forEach(comment => {
-              if (comment.sender !== _currentUser) {
+              if (comment.sender !== _currentUser && !(comment.thumbsUps || []).includes(_currentUser)) {
                 _notifs.push({ comment, task, team, project });
               }
             });
@@ -2206,33 +2206,28 @@ const Dashboard = (() => {
       const body = document.createElement('div');
       body.className = 'todo-body';
 
-      const taskName = document.createElement('div');
-      taskName.className = 'todo-task-name';
-      taskName.textContent = task.title || '(Untitled)';
-      body.appendChild(taskName);
+      const titleEl = document.createElement('div');
+      titleEl.className = 'todo-task-name';
+      titleEl.textContent = task.title || '(Untitled)';
+      body.appendChild(titleEl);
+
+      const projEl = document.createElement('div');
+      projEl.className = 'todo-project';
+      projEl.textContent = team.name + ' / ' + project.name;
+      body.appendChild(projEl);
 
       const noteText = document.createElement('div');
       noteText.className = 'todo-note';
       noteText.textContent = note.text;
       body.appendChild(noteText);
 
-      const meta = document.createElement('div');
-      meta.className = 'todo-meta';
-
-      const proj = document.createElement('span');
-      proj.className = 'todo-project';
-      proj.textContent = team.name + ' / ' + project.name;
-      meta.appendChild(proj);
-
-      body.appendChild(meta);
-
       const footer = document.createElement('div');
-      footer.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-top:4px;';
+      footer.className = 'todo-footer';
 
       const attribution = document.createElement('span');
       attribution.className = 'todo-attribution';
-      const sender = note.sender || _currentUser;
-      attribution.textContent = sender === _currentUser ? 'Reminder from you' : 'Reminder from ' + sender;
+      const noteSender = note.sender || _currentUser;
+      attribution.textContent = noteSender === _currentUser ? 'Reminder from you' : 'Reminder from ' + noteSender;
       footer.appendChild(attribution);
 
       const age = document.createElement('span');
@@ -2241,16 +2236,16 @@ const Dashboard = (() => {
       age.textContent = note.timestamp ? _humanAge(note.timestamp) : '';
       footer.appendChild(age);
 
-      body.appendChild(footer);
-      item.appendChild(body);
-
-      // Checkmark button — bottom-right of card
+      // Checkmark button — right side of footer (mirrors thumbs-up on notification cards)
       const chk = document.createElement('button');
       chk.className = 'todo-check-btn' + (isDone ? ' checked' : '');
       chk.textContent = '✓';
       chk.title = isDone ? 'Mark as not done' : 'Mark as done';
       chk.addEventListener('click', (e) => { e.stopPropagation(); _toggleDone(note.id, task.id, isDone); });
-      item.appendChild(chk);
+      footer.appendChild(chk);
+
+      body.appendChild(footer);
+      item.appendChild(body);
 
       // Click to navigate (not on checkmark or drag handle)
       item.addEventListener('click', (e) => {
