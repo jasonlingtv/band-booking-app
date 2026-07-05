@@ -126,8 +126,21 @@ const Dashboard = (() => {
 
   // ── Public entry point ────────────────────────────────────────────────────
 
-  function render() {
-    clearTimers();
+  function render(opts) {
+    const keepPanel = opts && opts.keepPanel;
+    if (keepPanel) {
+      // Data-driven re-render (todo:updated) — preserve the open panel
+      _clearTodoTimer();
+      clearTimeout(_hoverShowTimer); _hoverShowTimer = null;
+      clearTimeout(_hoverHideTimer); _hoverHideTimer = null;
+      _cleanupPanelHoverListeners();
+      _previewEl = null; _refreshEditorPreview = null;
+      _isNewDefault = false; _pendingNewIds = new Set(); _demoState = {};
+      if (typeof NewsView !== 'undefined') NewsView.cleanup();
+      if (typeof SocialsView !== 'undefined') SocialsView.cleanup();
+    } else {
+      clearTimers();
+    }
     const el = document.getElementById('dashboard-view');
     el.innerHTML = '';
     if (_draft !== null) {

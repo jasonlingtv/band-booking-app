@@ -131,7 +131,7 @@
     });
 
     Utils.EventBus.on('todo:updated', () => {
-      if (_dashboardActive) Dashboard.render();
+      if (_dashboardActive) Dashboard.render({ keepPanel: true });
     });
 
     Utils.EventBus.on('listview:refresh', () => {
