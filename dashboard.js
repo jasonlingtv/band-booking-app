@@ -1801,7 +1801,6 @@ const Dashboard = (() => {
   // ── To Do list ────────────────────────────────────────────────────────────
 
   function _renderTodo(el) {
-    _setupPanelHoverListeners();
     const _currentUser = DetailPanel.getCurrentUser();
 
     // ── Two-column layout ─────────────────────────────────────────────────────
@@ -2148,63 +2147,24 @@ const Dashboard = (() => {
           item.appendChild(_nudge);
         }
 
-        item.addEventListener('mouseenter', () => {
-          clearTimeout(_hoverHideTimer);
-          _hoverHideTimer = null;
-          clearTimeout(_hoverShowTimer);
-          _hoverShowTimer = null;
+        item.addEventListener('click', () => {
           const appEl = document.getElementById('app');
+          if (appEl.classList.contains('notif-preview-open') && _previewTaskId === task.id) return;
           if (appEl.classList.contains('notif-preview-open')) {
-            // Column already open — update content without closing the panel/pane
-            if (_previewTaskId !== task.id) {
-              _previewTaskId = task.id;
-              DetailPanel.render(task.id, { keepCommentPane: true });
-              DetailPanel.openCommentPane(task.id);
-            }
+            _previewTaskId = task.id;
+            DetailPanel.render(task.id, { keepCommentPane: true });
+            DetailPanel.openCommentPane(task.id);
           } else {
-            _hoverShowTimer = setTimeout(() => {
-              _previewTaskId = task.id;
-              appEl.classList.add('notif-preview-open');
-              DetailPanel.render(task.id);
-              setTimeout(() => DetailPanel.openCommentPane(task.id), 30);
-            }, 300);
+            _previewTaskId = task.id;
+            appEl.classList.add('notif-preview-open');
+            DetailPanel.render(task.id);
+            DetailPanel.openCommentPane(task.id);
           }
-        });
-        item.addEventListener('mouseleave', (e) => {
-          clearTimeout(_hoverShowTimer);
-          _hoverShowTimer = null;
-          // Ignore if mouse is still within the notification column (moving between items)
-          if (notifCol.contains(e.relatedTarget)) return;
-          _hoverHideTimer = setTimeout(() => {
-            if (!_mouseInPanel && _previewTaskId !== null) {
-              _previewTaskId = null;
-              document.getElementById('app').classList.remove('notif-preview-open');
-              DetailPanel.hide();
-            }
-          }, 350);
-        });
-        item.addEventListener('click', (e) => {
-          if (e.target.closest('.notif-thumbs-btn')) return;
-          _navigate(task.id, project.id);
         });
 
         notifCol.appendChild(item);
       });
     }
-
-    // Column-level mouseleave: fires when mouse fully exits the notification column
-    notifCol.addEventListener('mouseleave', (e) => {
-      if (notifCol.contains(e.relatedTarget)) return;
-      clearTimeout(_hoverShowTimer);
-      _hoverShowTimer = null;
-      _hoverHideTimer = setTimeout(() => {
-        if (!_mouseInPanel && _previewTaskId !== null) {
-          _previewTaskId = null;
-          document.getElementById('app').classList.remove('notif-preview-open');
-          DetailPanel.hide();
-        }
-      }, 350);
-    });
 
     // Live-updating age timer (covers both To Do ages and notification ages)
     const ageEls = cols.querySelectorAll('.todo-age, .notif-age');
@@ -2288,32 +2248,11 @@ const Dashboard = (() => {
       body.appendChild(footer);
       item.appendChild(body);
 
-      // Click to navigate (not on checkmark or drag handle)
+      // Click to open task panel (not on checkmark or drag handle)
       item.addEventListener('click', (e) => {
         if (e.target.closest('.todo-check-btn') || e.target.closest('.todo-drag-handle')) return;
-        _navigate(task.id, project.id);
-      });
-
-      // Hover preview
-      item.addEventListener('mouseenter', () => {
-        clearTimeout(_hoverHideTimer);
-        _hoverHideTimer = null;
-        clearTimeout(_hoverShowTimer);
-        _hoverShowTimer = setTimeout(() => {
-          _previewTaskId = task.id;
-          DetailPanel.render(task.id);
-        }, 350);
-      });
-
-      item.addEventListener('mouseleave', () => {
-        clearTimeout(_hoverShowTimer);
-        _hoverShowTimer = null;
-        _hoverHideTimer = setTimeout(() => {
-          if (!_mouseInPanel && _previewTaskId !== null) {
-            _previewTaskId = null;
-            DetailPanel.hide();
-          }
-        }, 350);
+        _previewTaskId = task.id;
+        DetailPanel.render(task.id);
       });
 
       return item;

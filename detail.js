@@ -132,8 +132,8 @@ const DetailPanel = (() => {
   function hide() {
     document.getElementById('detail-panel').classList.add('hidden');
     document.getElementById('app').classList.remove('detail-panel-open');
-    // Close comment pane so it doesn't orphan after panel closes
     document.getElementById('app').classList.remove('comment-pane-open');
+    document.getElementById('app').classList.remove('notif-preview-open');
     _refreshPaneComments = null;
     const pane = document.getElementById('comment-pane');
     if (pane) { pane.innerHTML = ''; delete pane.dataset.taskId; }
