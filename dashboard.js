@@ -100,9 +100,11 @@ const Dashboard = (() => {
         return;
       }
       const notifColEl = document.querySelector('.overview-col--notif');
+      const todoColEl = document.querySelector('.overview-col--todo');
       const panel = document.getElementById('detail-panel');
       const pane = document.getElementById('comment-pane');
       if (notifColEl && notifColEl.contains(e.target)) return;
+      if (todoColEl && todoColEl.contains(e.target)) return;
       if (panel && panel.contains(e.target)) return;
       if (pane && pane.contains(e.target)) return;
       _previewTaskId = null;
