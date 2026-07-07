@@ -1816,15 +1816,6 @@ const Dashboard = (() => {
     cols.appendChild(todoCol);
 
     // If mouse enters To Do column while notification preview is open, reset everything
-    todoCol.addEventListener('mouseenter', () => {
-      if (!document.getElementById('app').classList.contains('notif-preview-open')) return;
-      clearTimeout(_hoverShowTimer); _hoverShowTimer = null;
-      clearTimeout(_hoverHideTimer); _hoverHideTimer = null;
-      _mouseInPanel = false;
-      _previewTaskId = null;
-      document.getElementById('app').classList.remove('notif-preview-open');
-      DetailPanel.hide();
-    });
 
     const notifCol = document.createElement('div');
     notifCol.className = 'overview-col overview-col--notif';
@@ -2149,7 +2140,12 @@ const Dashboard = (() => {
 
         item.addEventListener('click', () => {
           const appEl = document.getElementById('app');
-          if (appEl.classList.contains('notif-preview-open') && _previewTaskId === task.id) return;
+          if (appEl.classList.contains('notif-preview-open') && _previewTaskId === task.id) {
+            // Same card clicked again — close and reset
+            _previewTaskId = null;
+            DetailPanel.hide();
+            return;
+          }
           if (appEl.classList.contains('notif-preview-open')) {
             _previewTaskId = task.id;
             DetailPanel.render(task.id, { keepCommentPane: true });
@@ -2248,11 +2244,16 @@ const Dashboard = (() => {
       body.appendChild(footer);
       item.appendChild(body);
 
-      // Click to open task panel (not on checkmark or drag handle)
+      // Click to open/close task panel (not on checkmark or drag handle)
       item.addEventListener('click', (e) => {
         if (e.target.closest('.todo-check-btn') || e.target.closest('.todo-drag-handle')) return;
-        _previewTaskId = task.id;
-        DetailPanel.render(task.id);
+        if (_previewTaskId === task.id && !document.getElementById('app').classList.contains('notif-preview-open')) {
+          _previewTaskId = null;
+          DetailPanel.hide();
+        } else {
+          _previewTaskId = task.id;
+          DetailPanel.render(task.id);
+        }
       });
 
       return item;
