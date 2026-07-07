@@ -19,6 +19,7 @@ const Dashboard = (() => {
   let _activeTemplateRow = null; // Template row currently showing the blue left-border accent
   let _completedExpanded = false;
   let _todoDragId = null;
+  let _notifOutsideHandler = null; // click-outside handler for notif preview
   const _TODO_ORDER_KEY = 'band_booking_todo_order';
 
   function _getTodoOrder() {
@@ -83,10 +84,40 @@ const Dashboard = (() => {
     }
   }
 
+  function _detachNotifOutsideHandler() {
+    if (_notifOutsideHandler) {
+      document.removeEventListener('click', _notifOutsideHandler, true);
+      _notifOutsideHandler = null;
+    }
+  }
+
+  function _attachNotifOutsideHandler() {
+    _detachNotifOutsideHandler();
+    _notifOutsideHandler = (e) => {
+      // Also clean up if the panel was already closed (e.g. via close button)
+      if (!document.getElementById('app').classList.contains('notif-preview-open')) {
+        _detachNotifOutsideHandler();
+        return;
+      }
+      const notifColEl = document.querySelector('.overview-col--notif');
+      const panel = document.getElementById('detail-panel');
+      const pane = document.getElementById('comment-pane');
+      if (notifColEl && notifColEl.contains(e.target)) return;
+      if (panel && panel.contains(e.target)) return;
+      if (pane && pane.contains(e.target)) return;
+      _previewTaskId = null;
+      _detachNotifOutsideHandler();
+      DetailPanel.hide();
+    };
+    // defer so this click doesn't immediately fire the handler
+    setTimeout(() => document.addEventListener('click', _notifOutsideHandler, true), 0);
+  }
+
   function clearTimers() {
     _clearTodoTimer();
     clearTimeout(_hoverShowTimer); _hoverShowTimer = null;
     clearTimeout(_hoverHideTimer); _hoverHideTimer = null;
+    _detachNotifOutsideHandler();
     _cleanupPanelHoverListeners();
     if (_previewTaskId !== null || _previewTemplateId !== null) {
       _previewTaskId = null;
@@ -2140,21 +2171,19 @@ const Dashboard = (() => {
 
         item.addEventListener('click', () => {
           const appEl = document.getElementById('app');
-          if (appEl.classList.contains('notif-preview-open') && _previewTaskId === task.id) {
-            // Same card clicked again — close and reset
-            _previewTaskId = null;
-            DetailPanel.hide();
-            return;
-          }
           if (appEl.classList.contains('notif-preview-open')) {
-            _previewTaskId = task.id;
-            DetailPanel.render(task.id, { keepCommentPane: true });
-            DetailPanel.openCommentPane(task.id);
+            // Switch task if different — never close on card click
+            if (_previewTaskId !== task.id) {
+              _previewTaskId = task.id;
+              DetailPanel.render(task.id, { keepCommentPane: true });
+              DetailPanel.openCommentPane(task.id);
+            }
           } else {
             _previewTaskId = task.id;
             appEl.classList.add('notif-preview-open');
             DetailPanel.render(task.id);
             DetailPanel.openCommentPane(task.id);
+            _attachNotifOutsideHandler();
           }
         });
 
