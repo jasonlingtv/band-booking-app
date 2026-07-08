@@ -19,8 +19,9 @@ const Dashboard = (() => {
   let _activeTemplateRow = null; // Template row currently showing the blue left-border accent
   let _completedExpanded = false;
   let _todoDragId = null;
-  let _notifOutsideHandler = null; // click-outside handler for notif/todo preview
-  let _activeTodoItemEl = null;    // currently highlighted todo item element
+  let _notifOutsideHandler = null;  // click-outside handler for notif/todo preview
+  let _activeTodoItemEl = null;     // currently highlighted todo item element
+  let _activeNotifItemEl = null;    // currently highlighted notification item element
   const _TODO_ORDER_KEY = 'band_booking_todo_order';
 
   function _getTodoOrder() {
@@ -86,10 +87,10 @@ const Dashboard = (() => {
   }
 
   function _clearActiveTodo() {
-    if (_activeTodoItemEl) {
-      _activeTodoItemEl.classList.remove('active');
-      _activeTodoItemEl = null;
-    }
+    if (_activeTodoItemEl) { _activeTodoItemEl.classList.remove('active'); _activeTodoItemEl = null; }
+  }
+  function _clearActiveNotif() {
+    if (_activeNotifItemEl) { _activeNotifItemEl.classList.remove('active'); _activeNotifItemEl = null; }
   }
 
   function _detachNotifOutsideHandler() {
@@ -105,6 +106,7 @@ const Dashboard = (() => {
       // Clean up if panel already closed (e.g. via close button)
       if (!document.getElementById('app').classList.contains('detail-panel-open')) {
         _clearActiveTodo();
+        _clearActiveNotif();
         _detachNotifOutsideHandler();
         return;
       }
@@ -118,6 +120,7 @@ const Dashboard = (() => {
       if (pane && pane.contains(e.target)) return;
       _previewTaskId = null;
       _clearActiveTodo();
+      _clearActiveNotif();
       document.getElementById('app').classList.remove('notif-preview-open');
       _detachNotifOutsideHandler();
       DetailPanel.hide();
@@ -132,6 +135,7 @@ const Dashboard = (() => {
     clearTimeout(_hoverHideTimer); _hoverHideTimer = null;
     _detachNotifOutsideHandler();
     _clearActiveTodo();
+    _clearActiveNotif();
     _cleanupPanelHoverListeners();
     if (_previewTaskId !== null || _previewTemplateId !== null) {
       _previewTaskId = null;
@@ -2186,20 +2190,39 @@ const Dashboard = (() => {
         item.addEventListener('click', () => {
           const appEl = document.getElementById('app');
           if (appEl.classList.contains('notif-preview-open')) {
-            // Switch task if different — never close on card click
-            if (_previewTaskId !== task.id) {
+            if (_previewTaskId === task.id) {
+              // Same card — toggle close
+              _previewTaskId = null;
+              _clearActiveNotif();
+              appEl.classList.remove('notif-preview-open');
+              _detachNotifOutsideHandler();
+              DetailPanel.hide();
+            } else {
+              // Different card — switch
               _previewTaskId = task.id;
+              _clearActiveNotif();
+              item.classList.add('active');
+              _activeNotifItemEl = item;
               DetailPanel.render(task.id, { keepCommentPane: true });
               DetailPanel.openCommentPane(task.id);
             }
           } else {
             _previewTaskId = task.id;
+            _clearActiveNotif();
+            item.classList.add('active');
+            _activeNotifItemEl = item;
             appEl.classList.add('notif-preview-open');
             DetailPanel.render(task.id);
             DetailPanel.openCommentPane(task.id);
             _attachNotifOutsideHandler();
           }
         });
+
+        // Re-apply highlight after keepPanel re-renders
+        if (task.id === _previewTaskId && document.getElementById('app').classList.contains('notif-preview-open')) {
+          item.classList.add('active');
+          _activeNotifItemEl = item;
+        }
 
         notifCol.appendChild(item);
       });
@@ -2287,16 +2310,24 @@ const Dashboard = (() => {
       body.appendChild(footer);
       item.appendChild(body);
 
-      // Click to open task panel (not on checkmark or drag handle)
+      // Click to open/toggle task panel (not on checkmark or drag handle)
       item.addEventListener('click', (e) => {
         if (e.target.closest('.todo-check-btn') || e.target.closest('.todo-drag-handle')) return;
         if (document.getElementById('app').classList.contains('notif-preview-open')) return;
-        _previewTaskId = task.id;
-        _clearActiveTodo();
-        item.classList.add('active');
-        _activeTodoItemEl = item;
-        DetailPanel.render(task.id);
-        _attachNotifOutsideHandler();
+        if (_previewTaskId === task.id) {
+          // Same item — toggle close
+          _previewTaskId = null;
+          _clearActiveTodo();
+          _detachNotifOutsideHandler();
+          DetailPanel.hide();
+        } else {
+          _previewTaskId = task.id;
+          _clearActiveTodo();
+          item.classList.add('active');
+          _activeTodoItemEl = item;
+          DetailPanel.render(task.id);
+          _attachNotifOutsideHandler();
+        }
       });
 
       // Re-apply highlight after keepPanel re-renders
