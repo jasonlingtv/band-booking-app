@@ -111,13 +111,15 @@ const Dashboard = (() => {
         return;
       }
       const notifColEl = document.querySelector('.overview-col--notif');
-      const todoColEl = document.querySelector('.overview-col--todo');
+      const todoColEl  = document.querySelector('.overview-col--todo');
+      const calColEl   = typeof OverviewCalendar !== 'undefined' ? OverviewCalendar.getEl() : null;
       const panel = document.getElementById('detail-panel');
-      const pane = document.getElementById('comment-pane');
+      const pane  = document.getElementById('comment-pane');
       if (notifColEl && notifColEl.contains(e.target)) return;
-      if (todoColEl && todoColEl.contains(e.target)) return;
+      if (todoColEl  && todoColEl.contains(e.target))  return;
+      if (calColEl   && calColEl.contains(e.target))   return;
       if (panel && panel.contains(e.target)) return;
-      if (pane && pane.contains(e.target)) return;
+      if (pane  && pane.contains(e.target))  return;
       _previewTaskId = null;
       _clearActiveTodo();
       _clearActiveNotif();
@@ -138,7 +140,8 @@ const Dashboard = (() => {
     _clearActiveTodo();
     _clearActiveNotif();
     const _appEl = document.getElementById('app');
-    if (_appEl) { _appEl.classList.remove('todo-panel-open'); _appEl.classList.remove('notif-preview-open'); }
+    if (_appEl) { _appEl.classList.remove('todo-panel-open'); _appEl.classList.remove('notif-preview-open'); _appEl.classList.remove('cal-expanded'); }
+    if (typeof OverviewCalendar !== 'undefined') OverviewCalendar.cleanup();
     _cleanupPanelHoverListeners();
     if (_previewTaskId !== null || _previewTemplateId !== null) {
       _previewTaskId = null;
@@ -190,6 +193,7 @@ const Dashboard = (() => {
       _isNewDefault = false; _pendingNewIds = new Set(); _demoState = {};
       if (typeof NewsView !== 'undefined') NewsView.cleanup();
       if (typeof SocialsView !== 'undefined') SocialsView.cleanup();
+      if (typeof OverviewCalendar !== 'undefined') OverviewCalendar.cleanup();
     } else {
       clearTimers();
     }
@@ -1877,6 +1881,21 @@ const Dashboard = (() => {
     notifCol.appendChild(_notifColHdr);
     cols.appendChild(notifCol);
 
+    // Calendar column (third)
+    OverviewCalendar.render(cols, {
+      onOpenTask: (taskId) => {
+        OverviewCalendar.collapseIfExpanded();
+        _previewTaskId = taskId;
+        _clearActiveTodo();
+        _clearActiveNotif();
+        const _appEl2 = document.getElementById('app');
+        _appEl2.classList.remove('notif-preview-open');
+        _appEl2.classList.add('todo-panel-open');
+        DetailPanel.render(taskId);
+        _attachNotifOutsideHandler();
+      }
+    });
+
     // alias: all existing wrap.appendChild(...) targets the To Do column
     const wrap = todoCol;
 
@@ -2218,6 +2237,7 @@ const Dashboard = (() => {
             _clearActiveNotif();
             item.classList.add('active');
             _activeNotifItemEl = item;
+            if (typeof OverviewCalendar !== 'undefined') OverviewCalendar.collapseIfExpanded();
             appEl.classList.remove('todo-panel-open');
             appEl.classList.add('notif-preview-open');
             DetailPanel.render(task.id);
@@ -2331,10 +2351,11 @@ const Dashboard = (() => {
           appEl.classList.remove('todo-panel-open');
           DetailPanel.hide();
         } else {
-          // Open this todo; if notif panel was open, collapse it first
+          // Open this todo; collapse notif/cal if open
           _previewTaskId = task.id;
           _clearActiveNotif();
           _clearActiveTodo();
+          if (typeof OverviewCalendar !== 'undefined') OverviewCalendar.collapseIfExpanded();
           appEl.classList.remove('notif-preview-open');
           appEl.classList.add('todo-panel-open');
           item.classList.add('active');
