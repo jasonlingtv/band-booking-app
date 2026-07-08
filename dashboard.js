@@ -2313,16 +2313,20 @@ const Dashboard = (() => {
       // Click to open/toggle task panel (not on checkmark or drag handle)
       item.addEventListener('click', (e) => {
         if (e.target.closest('.todo-check-btn') || e.target.closest('.todo-drag-handle')) return;
-        if (document.getElementById('app').classList.contains('notif-preview-open')) return;
-        if (_previewTaskId === task.id) {
-          // Same item — toggle close
+        const appEl = document.getElementById('app');
+        const notifOpen = appEl.classList.contains('notif-preview-open');
+        if (_previewTaskId === task.id && !notifOpen) {
+          // Same todo already showing — toggle close
           _previewTaskId = null;
           _clearActiveTodo();
           _detachNotifOutsideHandler();
           DetailPanel.hide();
         } else {
+          // Open this todo; if notif panel was open, collapse it first
           _previewTaskId = task.id;
+          _clearActiveNotif();
           _clearActiveTodo();
+          appEl.classList.remove('notif-preview-open');
           item.classList.add('active');
           _activeTodoItemEl = item;
           DetailPanel.render(task.id);
