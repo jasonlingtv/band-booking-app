@@ -122,6 +122,7 @@ const Dashboard = (() => {
       _clearActiveTodo();
       _clearActiveNotif();
       document.getElementById('app').classList.remove('notif-preview-open');
+      document.getElementById('app').classList.remove('todo-panel-open');
       _detachNotifOutsideHandler();
       DetailPanel.hide();
     };
@@ -136,6 +137,8 @@ const Dashboard = (() => {
     _detachNotifOutsideHandler();
     _clearActiveTodo();
     _clearActiveNotif();
+    const _appEl = document.getElementById('app');
+    if (_appEl) { _appEl.classList.remove('todo-panel-open'); _appEl.classList.remove('notif-preview-open'); }
     _cleanupPanelHoverListeners();
     if (_previewTaskId !== null || _previewTemplateId !== null) {
       _previewTaskId = null;
@@ -2196,6 +2199,7 @@ const Dashboard = (() => {
               _clearActiveTodo();
               _clearActiveNotif();
               appEl.classList.remove('notif-preview-open');
+              appEl.classList.remove('todo-panel-open');
               _detachNotifOutsideHandler();
               DetailPanel.hide();
             } else {
@@ -2214,6 +2218,7 @@ const Dashboard = (() => {
             _clearActiveNotif();
             item.classList.add('active');
             _activeNotifItemEl = item;
+            appEl.classList.remove('todo-panel-open');
             appEl.classList.add('notif-preview-open');
             DetailPanel.render(task.id);
             DetailPanel.openCommentPane(task.id);
@@ -2323,6 +2328,7 @@ const Dashboard = (() => {
           _previewTaskId = null;
           _clearActiveTodo();
           _detachNotifOutsideHandler();
+          appEl.classList.remove('todo-panel-open');
           DetailPanel.hide();
         } else {
           // Open this todo; if notif panel was open, collapse it first
@@ -2330,6 +2336,7 @@ const Dashboard = (() => {
           _clearActiveNotif();
           _clearActiveTodo();
           appEl.classList.remove('notif-preview-open');
+          appEl.classList.add('todo-panel-open');
           item.classList.add('active');
           _activeTodoItemEl = item;
           DetailPanel.render(task.id);

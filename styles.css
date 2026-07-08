@@ -1156,8 +1156,7 @@ a:hover { text-decoration: underline; }
   width: 210px;
   min-width: 210px;
 }
-/* Notification preview: stack columns vertically, fit snugly beside the task panel */
-/* Notification preview: single-column grid guarantees both sections are identical width */
+/* Notification clicked: slide notif column left beside panel, hide todo column */
 #app.notif-preview-open .overview-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1173,8 +1172,22 @@ a:hover { text-decoration: underline; }
   min-width: 0;
 }
 #app.notif-preview-open .overview-col--todo {
+  display: none;
+}
+
+/* Todo clicked: show todo column beside panel, hide notif column */
+#app.todo-panel-open .overview-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  max-width: calc(100% - max(45vw, 380px) - 24px);
+  gap: 20px;
+}
+#app.todo-panel-open .overview-col--todo {
   max-height: none;
   min-width: 0;
+}
+#app.todo-panel-open .overview-col--notif {
+  display: none;
 }
 
 .comment-pane-header {

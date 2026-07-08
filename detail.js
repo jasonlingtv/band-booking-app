@@ -134,6 +134,7 @@ const DetailPanel = (() => {
     document.getElementById('app').classList.remove('detail-panel-open');
     document.getElementById('app').classList.remove('comment-pane-open');
     document.getElementById('app').classList.remove('notif-preview-open');
+    document.getElementById('app').classList.remove('todo-panel-open');
     _refreshPaneComments = null;
     const pane = document.getElementById('comment-pane');
     if (pane) { pane.innerHTML = ''; delete pane.dataset.taskId; }
