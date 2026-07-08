@@ -19,7 +19,8 @@ const Dashboard = (() => {
   let _activeTemplateRow = null; // Template row currently showing the blue left-border accent
   let _completedExpanded = false;
   let _todoDragId = null;
-  let _notifOutsideHandler = null; // click-outside handler for notif preview
+  let _notifOutsideHandler = null; // click-outside handler for notif/todo preview
+  let _activeTodoItemEl = null;    // currently highlighted todo item element
   const _TODO_ORDER_KEY = 'band_booking_todo_order';
 
   function _getTodoOrder() {
@@ -84,6 +85,13 @@ const Dashboard = (() => {
     }
   }
 
+  function _clearActiveTodo() {
+    if (_activeTodoItemEl) {
+      _activeTodoItemEl.classList.remove('active');
+      _activeTodoItemEl = null;
+    }
+  }
+
   function _detachNotifOutsideHandler() {
     if (_notifOutsideHandler) {
       document.removeEventListener('click', _notifOutsideHandler, true);
@@ -94,8 +102,9 @@ const Dashboard = (() => {
   function _attachNotifOutsideHandler() {
     _detachNotifOutsideHandler();
     _notifOutsideHandler = (e) => {
-      // Also clean up if the panel was already closed (e.g. via close button)
-      if (!document.getElementById('app').classList.contains('notif-preview-open')) {
+      // Clean up if panel already closed (e.g. via close button)
+      if (!document.getElementById('app').classList.contains('detail-panel-open')) {
+        _clearActiveTodo();
         _detachNotifOutsideHandler();
         return;
       }
@@ -108,10 +117,12 @@ const Dashboard = (() => {
       if (panel && panel.contains(e.target)) return;
       if (pane && pane.contains(e.target)) return;
       _previewTaskId = null;
+      _clearActiveTodo();
+      document.getElementById('app').classList.remove('notif-preview-open');
       _detachNotifOutsideHandler();
       DetailPanel.hide();
     };
-    // defer so this click doesn't immediately fire the handler
+    // defer so this opening click doesn't immediately re-fire the handler
     setTimeout(() => document.addEventListener('click', _notifOutsideHandler, true), 0);
   }
 
@@ -120,6 +131,7 @@ const Dashboard = (() => {
     clearTimeout(_hoverShowTimer); _hoverShowTimer = null;
     clearTimeout(_hoverHideTimer); _hoverHideTimer = null;
     _detachNotifOutsideHandler();
+    _clearActiveTodo();
     _cleanupPanelHoverListeners();
     if (_previewTaskId !== null || _previewTemplateId !== null) {
       _previewTaskId = null;
@@ -2275,17 +2287,23 @@ const Dashboard = (() => {
       body.appendChild(footer);
       item.appendChild(body);
 
-      // Click to open/close task panel (not on checkmark or drag handle)
+      // Click to open task panel (not on checkmark or drag handle)
       item.addEventListener('click', (e) => {
         if (e.target.closest('.todo-check-btn') || e.target.closest('.todo-drag-handle')) return;
-        if (_previewTaskId === task.id && !document.getElementById('app').classList.contains('notif-preview-open')) {
-          _previewTaskId = null;
-          DetailPanel.hide();
-        } else {
-          _previewTaskId = task.id;
-          DetailPanel.render(task.id);
-        }
+        if (document.getElementById('app').classList.contains('notif-preview-open')) return;
+        _previewTaskId = task.id;
+        _clearActiveTodo();
+        item.classList.add('active');
+        _activeTodoItemEl = item;
+        DetailPanel.render(task.id);
+        _attachNotifOutsideHandler();
       });
+
+      // Re-apply highlight after keepPanel re-renders
+      if (task.id === _previewTaskId && !document.getElementById('app').classList.contains('notif-preview-open')) {
+        item.classList.add('active');
+        _activeTodoItemEl = item;
+      }
 
       return item;
     }

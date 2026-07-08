@@ -1269,7 +1269,7 @@ a:hover { text-decoration: underline; }
 .comment-bubble-wrap.mine { justify-content: flex-end; }
 
 .comment-bubble {
-  max-width: 73%;
+  max-width: 88%;
   background: var(--bg-hover);
   border-radius: 12px 12px 12px 3px;
   padding: 7px 11px;
@@ -2555,6 +2555,8 @@ a:hover { text-decoration: underline; }
 }
 
 .todo-item:hover { background: var(--bg-hover); border-color: #d1d5db; }
+.todo-item.active { background: #eff6ff; border-color: #93c5fd; }
+.todo-item.active:hover { background: #dbeafe; border-color: #60a5fa; }
 .todo-item.done { opacity: 0.5; }
 
 .todo-checkbox {
