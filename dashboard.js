@@ -2193,6 +2193,7 @@ const Dashboard = (() => {
             if (_previewTaskId === task.id) {
               // Same card — toggle close
               _previewTaskId = null;
+              _clearActiveTodo();
               _clearActiveNotif();
               appEl.classList.remove('notif-preview-open');
               _detachNotifOutsideHandler();
@@ -2200,6 +2201,7 @@ const Dashboard = (() => {
             } else {
               // Different card — switch
               _previewTaskId = task.id;
+              _clearActiveTodo();
               _clearActiveNotif();
               item.classList.add('active');
               _activeNotifItemEl = item;
@@ -2208,6 +2210,7 @@ const Dashboard = (() => {
             }
           } else {
             _previewTaskId = task.id;
+            _clearActiveTodo();
             _clearActiveNotif();
             item.classList.add('active');
             _activeNotifItemEl = item;
