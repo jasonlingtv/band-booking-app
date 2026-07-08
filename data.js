@@ -329,7 +329,8 @@ const DataLayer = (() => {
       }
     }
 
-    // 13. Seed test comments for Unread Notifications demo
+    // 13. Seed test comments for Unread Notifications demo (only once — skip on subsequent loads)
+    if (_data._commentSeeded) { if (dirty) saveData(); return; }
     const _seedComments = [
       { id: 'tc_sarah_1', sender: 'Sarah',  mins: 120,  text: "Hey Jason — just checking in on this booking. Have you received the advance info from the venue yet? They mentioned sending it over last week but I haven't seen it confirmed anywhere." },
       { id: 'tc_mike_1',  sender: 'Mike',   mins: 45,   text: "Also — the rider needs updating before we send it to the venue. The current one still has the old hospitality requirements. Can you check with the band what they need?" },
@@ -404,6 +405,8 @@ const DataLayer = (() => {
       });
     }
 
+    _data._commentSeeded = true;
+    dirty = true;
     if (dirty) saveData();
   }
 
