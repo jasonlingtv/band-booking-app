@@ -18,6 +18,7 @@ const OverviewCalendar = (() => {
   let _expanded = false;
   let _outsideH = null;
   let _onOpenTask = null;
+  let _tabMode  = false;
 
   // ── Data helpers ────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ const OverviewCalendar = (() => {
   function _projectList() {
     const out = [];
     DataLayer.getTeams().forEach(team => {
-      (team.projects || []).forEach(project => out.push({ team, project }));
+      (team.projects || []).filter(p => !p._isInbox).forEach(project => out.push({ team, project }));
     });
     return out;
   }
@@ -194,15 +195,74 @@ const OverviewCalendar = (() => {
   }
 
   function _createQuickReminder() {
-    _modal({
-      heading: 'Quick reminder — To Do only',
-      placeholder: 'Reminder…',
-      btnLabel: 'Add to To Do',
-      onConfirm: (name, sectionId) => {
-        DataLayer.addTask(sectionId, { title: name });
-        Utils.EventBus.emit('todo:updated');
-      }
+    const PRIOS = [
+      { id: 'urgent_important',     label: 'Urgent',      color: '#ef4444' },
+      { id: 'important_not_urgent', label: 'Important',   color: '#3b82f6' },
+      { id: 'urgent_not_important', label: 'Must do',     color: '#22c55e' },
+      { id: 'quick_info',           label: 'Info',        color: '#9ca3af' },
+      { id: null,                   label: 'No priority', color: '#d1d5db' },
+    ];
+
+    const overlay = document.createElement('div');
+    overlay.className = 'cal-modal-overlay';
+    const box = document.createElement('div');
+    box.className = 'cal-modal';
+
+    const ttl = document.createElement('div');
+    ttl.className = 'cal-modal-title';
+    ttl.textContent = 'Add reminder to To Do';
+    box.appendChild(ttl);
+
+    const inp = document.createElement('input');
+    inp.className = 'cal-modal-input';
+    inp.placeholder = 'Reminder…';
+    inp.type = 'text';
+    box.appendChild(inp);
+
+    const prioWrap = document.createElement('div');
+    prioWrap.className = 'cal-modal-prio-row';
+    let selectedPrio = null;
+    PRIOS.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'cal-modal-prio-btn';
+      btn.textContent = p.label;
+      btn.style.setProperty('--prio-color', p.color);
+      btn.addEventListener('click', () => {
+        prioWrap.querySelectorAll('.cal-modal-prio-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedPrio = p.id;
+      });
+      prioWrap.appendChild(btn);
     });
+    box.appendChild(prioWrap);
+
+    const acts = document.createElement('div');
+    acts.className = 'cal-modal-actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'cal-modal-btn cal-modal-btn--cancel';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => overlay.remove());
+    const save = document.createElement('button');
+    save.className = 'cal-modal-btn cal-modal-btn--save';
+    save.textContent = 'Add to To Do';
+    save.addEventListener('click', () => {
+      const name = inp.value.trim();
+      if (!name) { inp.focus(); return; }
+      overlay.remove();
+      DataLayer.addStandaloneReminder(name, selectedPrio);
+      Utils.EventBus.emit('todo:updated');
+    });
+    acts.appendChild(cancel);
+    acts.appendChild(save);
+    box.appendChild(acts);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') save.click();
+      if (e.key === 'Escape') overlay.remove();
+    });
+    setTimeout(() => inp.focus(), 0);
   }
 
   // ── Event chip ──────────────────────────────────────────────────────────────
@@ -276,52 +336,99 @@ const OverviewCalendar = (() => {
     const hdr = document.createElement('div');
     hdr.className = 'cal-col-hdr';
 
-    // Nav row
-    const nav = document.createElement('div');
-    nav.className = 'cal-nav-row';
+    if (_tabMode) {
+      // Single-row Google Calendar-style header for tab mode
+      const row = document.createElement('div');
+      row.className = 'cal-nav-row cal-nav-row--gcal';
 
-    const prev = document.createElement('button');
-    prev.className = 'cal-nav-btn'; prev.textContent = '‹'; prev.title = 'Previous';
-    prev.addEventListener('click', () => _navigate(-1));
+      const prev = document.createElement('button');
+      prev.className = 'cal-nav-btn'; prev.textContent = '‹'; prev.title = 'Previous';
+      prev.addEventListener('click', () => _navigate(-1));
 
-    const lbl = document.createElement('span');
-    lbl.className = 'cal-nav-lbl';
-    lbl.textContent = _navLabel();
-    _navLbl = lbl;
+      const next = document.createElement('button');
+      next.className = 'cal-nav-btn'; next.textContent = '›'; next.title = 'Next';
+      next.addEventListener('click', () => _navigate(1));
 
-    const next = document.createElement('button');
-    next.className = 'cal-nav-btn'; next.textContent = '›'; next.title = 'Next';
-    next.addEventListener('click', () => _navigate(1));
-
-    const tod = document.createElement('button');
-    tod.className = 'cal-today-btn'; tod.textContent = 'Today';
-    tod.addEventListener('click', () => {
-      _date = new Date(); _date.setHours(0,0,0,0);
-      _refreshNav(); _refreshBody();
-    });
-
-    nav.appendChild(prev); nav.appendChild(lbl); nav.appendChild(next); nav.appendChild(tod);
-
-    // View toggle
-    const tgl = document.createElement('div');
-    tgl.className = 'cal-view-tgl';
-    _toggle = tgl;
-
-    ['day','week','month'].forEach(v => {
-      const btn = document.createElement('button');
-      btn.className = 'cal-view-btn' + (_view === v ? ' active' : '');
-      btn.dataset.v = v;
-      btn.textContent = v.charAt(0).toUpperCase() + v.slice(1);
-      btn.addEventListener('click', () => {
-        if (v === 'day') { collapseIfExpanded(); }
-        else if (v === _view && _expanded) { /* same view — no-op */ }
-        else { _expand(v); }
+      const tod = document.createElement('button');
+      tod.className = 'cal-today-btn'; tod.textContent = 'Today';
+      tod.addEventListener('click', () => {
+        _date = new Date(); _date.setHours(0,0,0,0);
+        _refreshNav(); _refreshBody();
       });
-      tgl.appendChild(btn);
-    });
 
-    hdr.appendChild(nav);
-    hdr.appendChild(tgl);
+      const lbl = document.createElement('span');
+      lbl.className = 'cal-nav-lbl';
+      lbl.textContent = _navLabel();
+      _navLbl = lbl;
+
+      const tgl = document.createElement('div');
+      tgl.className = 'cal-view-tgl';
+      _toggle = tgl;
+
+      ['day','week','month'].forEach(v => {
+        const btn = document.createElement('button');
+        btn.className = 'cal-view-btn' + (_view === v ? ' active' : '');
+        btn.dataset.v = v;
+        btn.textContent = v.charAt(0).toUpperCase() + v.slice(1);
+        btn.addEventListener('click', () => {
+          _view = v;
+          _refreshNav(); _refreshBody(); _refreshToggle();
+        });
+        tgl.appendChild(btn);
+      });
+
+      row.appendChild(prev); row.appendChild(next); row.appendChild(tod);
+      row.appendChild(lbl);
+      row.appendChild(tgl);
+      hdr.appendChild(row);
+    } else {
+      // Two-row header for overview column mode
+      const nav = document.createElement('div');
+      nav.className = 'cal-nav-row';
+
+      const prev = document.createElement('button');
+      prev.className = 'cal-nav-btn'; prev.textContent = '‹'; prev.title = 'Previous';
+      prev.addEventListener('click', () => _navigate(-1));
+
+      const lbl = document.createElement('span');
+      lbl.className = 'cal-nav-lbl';
+      lbl.textContent = _navLabel();
+      _navLbl = lbl;
+
+      const next = document.createElement('button');
+      next.className = 'cal-nav-btn'; next.textContent = '›'; next.title = 'Next';
+      next.addEventListener('click', () => _navigate(1));
+
+      const tod = document.createElement('button');
+      tod.className = 'cal-today-btn'; tod.textContent = 'Today';
+      tod.addEventListener('click', () => {
+        _date = new Date(); _date.setHours(0,0,0,0);
+        _refreshNav(); _refreshBody();
+      });
+
+      nav.appendChild(prev); nav.appendChild(lbl); nav.appendChild(next); nav.appendChild(tod);
+
+      const tgl = document.createElement('div');
+      tgl.className = 'cal-view-tgl';
+      _toggle = tgl;
+
+      ['day','week','month'].forEach(v => {
+        const btn = document.createElement('button');
+        btn.className = 'cal-view-btn' + (_view === v ? ' active' : '');
+        btn.dataset.v = v;
+        btn.textContent = v.charAt(0).toUpperCase() + v.slice(1);
+        btn.addEventListener('click', () => {
+          if (v === 'day') { collapseIfExpanded(); }
+          else if (v === _view && _expanded) { /* same view — no-op */ }
+          else { _expand(v); }
+        });
+        tgl.appendChild(btn);
+      });
+
+      hdr.appendChild(nav);
+      hdr.appendChild(tgl);
+    }
+
     _calEl.appendChild(hdr);
   }
 
@@ -354,12 +461,6 @@ const OverviewCalendar = (() => {
     if (_view === 'day')        _dayView(_bodyEl);
     else if (_view === 'week')  _weekView(_bodyEl);
     else                        _monthView(_bodyEl);
-
-    const qr = document.createElement('button');
-    qr.className = 'cal-qr-btn';
-    qr.textContent = '+ Quick reminder (To Do only)';
-    qr.addEventListener('click', () => _createQuickReminder());
-    _bodyEl.appendChild(qr);
 
     _calEl.appendChild(_bodyEl);
   }
@@ -540,8 +641,10 @@ const OverviewCalendar = (() => {
 
   function render(containerEl, opts) {
     _onOpenTask = opts && opts.onOpenTask ? opts.onOpenTask : null;
+    _tabMode = !!(opts && opts.tabMode);
+    if (opts && opts.defaultView) _view = opts.defaultView;
     _calEl = document.createElement('div');
-    _calEl.className = 'overview-col overview-col--cal';
+    _calEl.className = _tabMode ? 'cal-tab-grid' : 'overview-col overview-col--cal';
     _buildHeader();
     _refreshBody();
     containerEl.appendChild(_calEl);
@@ -561,6 +664,7 @@ const OverviewCalendar = (() => {
     if (app && _expanded) app.classList.remove('cal-expanded');
     _expanded = false;
     _view = 'day';
+    _tabMode = false;
     _calEl = null;
     _bodyEl = null;
     _navLbl = null;

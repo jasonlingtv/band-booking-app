@@ -22,6 +22,7 @@ const Dashboard = (() => {
   let _notifOutsideHandler = null;  // click-outside handler for notif/todo preview
   let _activeTodoItemEl = null;     // currently highlighted todo item element
   let _activeNotifItemEl = null;    // currently highlighted notification item element
+  let _activeStandaloneId = null;   // note.id of highlighted standalone reminder
   const _TODO_ORDER_KEY = 'band_booking_todo_order';
 
   function _getTodoOrder() {
@@ -88,6 +89,7 @@ const Dashboard = (() => {
 
   function _clearActiveTodo() {
     if (_activeTodoItemEl) { _activeTodoItemEl.classList.remove('active'); _activeTodoItemEl = null; }
+    _activeStandaloneId = null;
   }
   function _clearActiveNotif() {
     if (_activeNotifItemEl) { _activeNotifItemEl.classList.remove('active'); _activeNotifItemEl = null; }
@@ -112,12 +114,10 @@ const Dashboard = (() => {
       }
       const notifColEl = document.querySelector('.overview-col--notif');
       const todoColEl  = document.querySelector('.overview-col--todo');
-      const calColEl   = typeof OverviewCalendar !== 'undefined' ? OverviewCalendar.getEl() : null;
       const panel = document.getElementById('detail-panel');
       const pane  = document.getElementById('comment-pane');
       if (notifColEl && notifColEl.contains(e.target)) return;
       if (todoColEl  && todoColEl.contains(e.target))  return;
-      if (calColEl   && calColEl.contains(e.target))   return;
       if (panel && panel.contains(e.target)) return;
       if (pane  && pane.contains(e.target))  return;
       _previewTaskId = null;
@@ -140,7 +140,7 @@ const Dashboard = (() => {
     _clearActiveTodo();
     _clearActiveNotif();
     const _appEl = document.getElementById('app');
-    if (_appEl) { _appEl.classList.remove('todo-panel-open'); _appEl.classList.remove('notif-preview-open'); _appEl.classList.remove('cal-expanded'); }
+    if (_appEl) { _appEl.classList.remove('todo-panel-open'); _appEl.classList.remove('notif-preview-open'); }
     if (typeof OverviewCalendar !== 'undefined') OverviewCalendar.cleanup();
     _cleanupPanelHoverListeners();
     if (_previewTaskId !== null || _previewTemplateId !== null) {
@@ -206,7 +206,7 @@ const Dashboard = (() => {
     // Tab bar
     const tabBar = document.createElement('div');
     tabBar.className = 'dash-tab-bar';
-    [['templates', 'Templates'], ['todo', 'Overview'], ['news', 'News'], ['socials', 'My Socials']].forEach(([id, label]) => {
+    [['templates', 'Templates'], ['todo', 'Overview'], ['calendar', 'Calendar'], ['socials', 'My Socials']].forEach(([id, label]) => {
       const btn = document.createElement('button');
       btn.className = 'dash-tab-btn' + (_dashTab === id ? ' active' : '');
       btn.textContent = label;
@@ -217,8 +217,8 @@ const Dashboard = (() => {
 
     if (_dashTab === 'todo') {
       _renderTodo(el);
-    } else if (_dashTab === 'news') {
-      NewsView.render(el);
+    } else if (_dashTab === 'calendar') {
+      _renderCalendar(el);
     } else if (_dashTab === 'socials') {
       SocialsView.render(el);
     } else {
@@ -1865,10 +1865,88 @@ const Dashboard = (() => {
 
     const todoCol = document.createElement('div');
     todoCol.className = 'overview-col overview-col--todo';
+
     const _todoColHdr = document.createElement('div');
-    _todoColHdr.className = 'overview-col-header';
-    _todoColHdr.textContent = 'TO DO';
+    _todoColHdr.className = 'overview-col-header overview-col-header--with-add';
+    const _hdrTitle = document.createElement('span');
+    _hdrTitle.textContent = 'TO DO';
+    _todoColHdr.appendChild(_hdrTitle);
+    const _hdrAddBtn = document.createElement('button');
+    _hdrAddBtn.className = 'todo-col-add-btn';
+    _hdrAddBtn.textContent = '+';
+    _hdrAddBtn.title = 'Add reminder';
+    _todoColHdr.appendChild(_hdrAddBtn);
     todoCol.appendChild(_todoColHdr);
+
+    // Inline reminder add bar (hidden until + clicked)
+    const _addBar = document.createElement('div');
+    _addBar.className = 'todo-add-bar';
+    _addBar.style.display = 'none';
+    todoCol.appendChild(_addBar);
+
+    const _ADD_PRIOS = [
+      { id: 'urgent_important',     label: 'Urgent',    color: '#ef4444' },
+      { id: 'important_not_urgent', label: 'Important', color: '#3b82f6' },
+      { id: 'urgent_not_important', label: 'Must do',   color: '#22c55e' },
+      { id: 'quick_info',           label: 'Info',      color: '#9ca3af' },
+    ];
+
+    _hdrAddBtn.addEventListener('click', () => {
+      if (_addBar.style.display !== 'none') return;
+      _addBar.style.display = '';
+      _addBar.innerHTML = '';
+
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'todo-add-input';
+      inp.placeholder = 'Add reminder…';
+      _addBar.appendChild(inp);
+
+      const prioRow = document.createElement('div');
+      prioRow.className = 'todo-add-prio-row';
+      prioRow.style.display = 'none';
+      _addBar.appendChild(prioRow);
+
+      let committed = false;
+
+      function _addCommit(priority) {
+        if (committed) return;
+        committed = true;
+        const text = inp.value.trim();
+        if (text) {
+          DataLayer.addStandaloneReminder(text, priority);
+          Utils.EventBus.emit('todo:updated');
+        } else {
+          _addBar.style.display = 'none'; _addBar.innerHTML = '';
+        }
+      }
+
+      function _addDiscard() {
+        if (committed) return;
+        committed = true;
+        _addBar.style.display = 'none'; _addBar.innerHTML = '';
+      }
+
+      _ADD_PRIOS.forEach(p => {
+        const btn = document.createElement('button');
+        btn.className = 'cal-modal-prio-btn';
+        btn.textContent = p.label;
+        btn.style.setProperty('--prio-color', p.color);
+        btn.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); _addCommit(p.id); });
+        prioRow.appendChild(btn);
+      });
+
+      inp.addEventListener('input', () => {
+        prioRow.style.display = inp.value.trim() ? 'flex' : 'none';
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); _addCommit(null); }
+        if (e.key === 'Escape') _addDiscard();
+      });
+      inp.addEventListener('blur', () => { setTimeout(() => _addDiscard(), 150); });
+      setTimeout(() => inp.focus(), 0);
+    });
+
     cols.appendChild(todoCol);
 
     // If mouse enters To Do column while notification preview is open, reset everything
@@ -1881,25 +1959,10 @@ const Dashboard = (() => {
     notifCol.appendChild(_notifColHdr);
     cols.appendChild(notifCol);
 
-    // Calendar column (third)
-    OverviewCalendar.render(cols, {
-      onOpenTask: (taskId) => {
-        OverviewCalendar.collapseIfExpanded();
-        _previewTaskId = taskId;
-        _clearActiveTodo();
-        _clearActiveNotif();
-        const _appEl2 = document.getElementById('app');
-        _appEl2.classList.remove('notif-preview-open');
-        _appEl2.classList.add('todo-panel-open');
-        DetailPanel.render(taskId);
-        _attachNotifOutsideHandler();
-      }
-    });
-
     // alias: all existing wrap.appendChild(...) targets the To Do column
     const wrap = todoCol;
 
-    // Gather all tasks with notes across all teams/projects
+    // Gather all tasks with notes + standalone reminders across all teams/projects
     function _collectItems() {
       const items = [];
       DataLayer.getTeams().forEach(team => {
@@ -1918,6 +1981,10 @@ const Dashboard = (() => {
             });
           });
         });
+      });
+      // Standalone reminders (not linked to any task or project)
+      DataLayer.getStandaloneReminders().forEach(r => {
+        items.push({ note: r, task: null, team: null, project: null });
       });
       return items;
     }
@@ -1941,6 +2008,12 @@ const Dashboard = (() => {
     }
 
     function _toggleDone(noteId, taskId, currentDone) {
+      if (!taskId) {
+        DataLayer.updateStandaloneReminder(noteId, { done: !currentDone });
+        _clearTodoTimer();
+        render();
+        return;
+      }
       const t = DataLayer.getTask(taskId);
       if (!t) return;
       const changes = {};
@@ -2052,13 +2125,17 @@ const Dashboard = (() => {
 
         // Update priority if section changed
         if ((draggedItem.note.priority || null) !== (sectionId || null)) {
-          const t = DataLayer.getTask(draggedItem.task.id);
-          if (t) {
-            DataLayer.updateTask(t.id, {
-              listNotes: (t.listNotes || []).map(n =>
-                n.id === _todoDragId ? Object.assign({}, n, { priority: sectionId || null }) : n
-              )
-            });
+          if (!draggedItem.task) {
+            DataLayer.updateStandaloneReminder(draggedItem.note.id, { priority: sectionId || null });
+          } else {
+            const t = DataLayer.getTask(draggedItem.task.id);
+            if (t) {
+              DataLayer.updateTask(t.id, {
+                listNotes: (t.listNotes || []).map(n =>
+                  n.id === _todoDragId ? Object.assign({}, n, { priority: sectionId || null }) : n
+                )
+              });
+            }
           }
         }
 
@@ -2237,8 +2314,7 @@ const Dashboard = (() => {
             _clearActiveNotif();
             item.classList.add('active');
             _activeNotifItemEl = item;
-            if (typeof OverviewCalendar !== 'undefined') OverviewCalendar.collapseIfExpanded();
-            appEl.classList.remove('todo-panel-open');
+              appEl.classList.remove('todo-panel-open');
             appEl.classList.add('notif-preview-open');
             DetailPanel.render(task.id);
             DetailPanel.openCommentPane(task.id);
@@ -2268,6 +2344,7 @@ const Dashboard = (() => {
     }
 
     function _makeTodoItem({ note, task, team, project }, isDone) {
+      const isStandalone = !task;
       const item = document.createElement('div');
       item.className = 'todo-item' + (isDone ? ' done' : '');
       item.dataset.noteId = note.id;
@@ -2299,26 +2376,34 @@ const Dashboard = (() => {
 
       const titleEl = document.createElement('div');
       titleEl.className = 'todo-task-name';
-      titleEl.textContent = task.title || '(Untitled)';
+      titleEl.textContent = isStandalone ? note.text : (task.title || '(Untitled)');
       body.appendChild(titleEl);
 
-      const projEl = document.createElement('div');
-      projEl.className = 'todo-project';
-      projEl.textContent = team.name + ' / ' + project.name;
-      body.appendChild(projEl);
+      if (!isStandalone) {
+        const projEl = document.createElement('div');
+        projEl.className = 'todo-project';
+        projEl.textContent = team.name + ' / ' + project.name;
+        body.appendChild(projEl);
 
-      const noteText = document.createElement('div');
-      noteText.className = 'todo-note';
-      noteText.textContent = note.text;
-      body.appendChild(noteText);
+        if (note.text && note.text !== task.title) {
+          const noteText = document.createElement('div');
+          noteText.className = 'todo-note';
+          noteText.textContent = note.text;
+          body.appendChild(noteText);
+        }
+      }
 
       const footer = document.createElement('div');
       footer.className = 'todo-footer';
 
       const attribution = document.createElement('span');
       attribution.className = 'todo-attribution';
-      const noteSender = note.sender || _currentUser;
-      attribution.textContent = noteSender === _currentUser ? 'Reminder from you' : 'Reminder from ' + noteSender;
+      if (isStandalone) {
+        attribution.textContent = 'General reminder from you';
+      } else {
+        const noteSender = note.sender || _currentUser;
+        attribution.textContent = noteSender === _currentUser ? 'Task reminder from you' : 'Task reminder from ' + noteSender;
+      }
       footer.appendChild(attribution);
 
       const age = document.createElement('span');
@@ -2332,7 +2417,7 @@ const Dashboard = (() => {
       chk.className = 'todo-check-btn' + (isDone ? ' checked' : '');
       chk.textContent = '✓';
       chk.title = isDone ? 'Mark as not done' : 'Mark as done';
-      chk.addEventListener('click', (e) => { e.stopPropagation(); _toggleDone(note.id, task.id, isDone); });
+      chk.addEventListener('click', (e) => { e.stopPropagation(); _toggleDone(note.id, task ? task.id : null, isDone); });
       footer.appendChild(chk);
 
       body.appendChild(footer);
@@ -2341,6 +2426,26 @@ const Dashboard = (() => {
       // Click to open/toggle task panel (not on checkmark or drag handle)
       item.addEventListener('click', (e) => {
         if (e.target.closest('.todo-check-btn') || e.target.closest('.todo-drag-handle')) return;
+        if (isStandalone) {
+          const appEl = document.getElementById('app');
+          if (_activeStandaloneId === note.id) {
+            // Toggle off
+            _activeStandaloneId = null;
+            _clearActiveTodo();
+          } else {
+            _previewTaskId = null;
+            _clearActiveTodo();
+            _clearActiveNotif();
+            _detachNotifOutsideHandler();
+            appEl.classList.remove('todo-panel-open');
+            appEl.classList.remove('notif-preview-open');
+            DetailPanel.hide();
+            _activeStandaloneId = note.id;
+            item.classList.add('active');
+            _activeTodoItemEl = item;
+          }
+          return;
+        }
         const appEl = document.getElementById('app');
         const notifOpen = appEl.classList.contains('notif-preview-open');
         if (_previewTaskId === task.id && !notifOpen) {
@@ -2355,7 +2460,6 @@ const Dashboard = (() => {
           _previewTaskId = task.id;
           _clearActiveNotif();
           _clearActiveTodo();
-          if (typeof OverviewCalendar !== 'undefined') OverviewCalendar.collapseIfExpanded();
           appEl.classList.remove('notif-preview-open');
           appEl.classList.add('todo-panel-open');
           item.classList.add('active');
@@ -2366,13 +2470,97 @@ const Dashboard = (() => {
       });
 
       // Re-apply highlight after keepPanel re-renders
-      if (task.id === _previewTaskId && !document.getElementById('app').classList.contains('notif-preview-open')) {
+      if (isStandalone && note.id === _activeStandaloneId) {
+        item.classList.add('active');
+        _activeTodoItemEl = item;
+      } else if (!isStandalone && task.id === _previewTaskId && !document.getElementById('app').classList.contains('notif-preview-open')) {
         item.classList.add('active');
         _activeTodoItemEl = item;
       }
 
       return item;
     }
+  }
+
+  // ── Calendar tab ────────────────────────────────────────────────────────────
+
+  function _renderCalendar(el) {
+    const PRIOS = [
+      { id: 'urgent_important',     label: 'Urgent',    color: '#ef4444' },
+      { id: 'important_not_urgent', label: 'Important', color: '#3b82f6' },
+      { id: 'urgent_not_important', label: 'Must do',   color: '#22c55e' },
+      { id: 'quick_info',           label: 'Info',      color: '#9ca3af' },
+    ];
+
+    const wrap = document.createElement('div');
+    wrap.className = 'cal-tab-wrap';
+
+    // ── Reminder input (type → priority pills appear → select = submit) ─────
+    const reminderBox = document.createElement('div');
+    reminderBox.className = 'cal-tab-reminder-box';
+
+    const inp = document.createElement('input');
+    inp.className = 'cal-tab-reminder-input';
+    inp.type = 'text';
+    inp.placeholder = 'Add reminder to To Do…';
+    reminderBox.appendChild(inp);
+
+    const prioRow = document.createElement('div');
+    prioRow.className = 'cal-tab-prio-row';
+    prioRow.style.display = 'none';
+
+    function commitReminder(priority) {
+      const text = inp.value.trim();
+      if (!text) return;
+      DataLayer.addStandaloneReminder(text, priority);
+      Utils.EventBus.emit('todo:updated');
+      inp.value = '';
+      prioRow.style.display = 'none';
+    }
+
+    function discardReminder() {
+      inp.value = '';
+      prioRow.style.display = 'none';
+    }
+
+    PRIOS.forEach(p => {
+      const btn = document.createElement('button');
+      btn.className = 'cal-modal-prio-btn';
+      btn.textContent = p.label;
+      btn.style.setProperty('--prio-color', p.color);
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        commitReminder(p.id);
+      });
+      prioRow.appendChild(btn);
+    });
+    reminderBox.appendChild(prioRow);
+
+    inp.addEventListener('input', () => {
+      prioRow.style.display = inp.value.trim() ? 'flex' : 'none';
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); commitReminder(null); }
+      if (e.key === 'Escape') discardReminder();
+    });
+    inp.addEventListener('blur', () => {
+      setTimeout(() => discardReminder(), 150);
+    });
+
+    wrap.appendChild(reminderBox);
+
+    // ── Calendar grid ───────────────────────────────────────────────────────
+    OverviewCalendar.render(wrap, {
+      tabMode: true,
+      defaultView: 'month',
+      onOpenTask: (taskId) => {
+        const section = DataLayer.getTaskSection(taskId);
+        const proj = section ? DataLayer.getSectionProject(section.id) : null;
+        if (proj) Utils.EventBus.emit('todo:navigate', { taskId, projectId: proj.id });
+      }
+    });
+
+    el.appendChild(wrap);
   }
 
   function _autoSave() {

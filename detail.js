@@ -2067,6 +2067,7 @@ const DetailPanel = (() => {
       function commitNote(priority) {
         if (committed) return;
         committed = true;
+        _editingActive = false;
         strip.style.display = 'none';
         const text = input.value.trim();
         if (text) {
@@ -2080,14 +2081,23 @@ const DetailPanel = (() => {
         refreshDisplay();
       }
 
+      function discardNote() {
+        if (committed) return;
+        committed = true;
+        _editingActive = false;
+        refreshDisplay();
+      }
+
+      input.addEventListener('input', () => {
+        strip.style.display = input.value.trim() ? 'flex' : 'none';
+      });
+      input.addEventListener('focus', () => { _editingActive = true; });
       input.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') { ev.preventDefault(); commitNote(null); }
-        if (ev.key === 'Escape') { committed = true; refreshDisplay(); }
+        if (ev.key === 'Escape') { ev.preventDefault(); discardNote(); }
       });
-      input.addEventListener('focus', () => { strip.style.display = 'flex'; _editingActive = true; });
       input.addEventListener('blur', () => {
-        setTimeout(() => { strip.style.display = 'none'; _editingActive = false; }, 200);
-        setTimeout(() => commitNote(null), 250);
+        setTimeout(() => discardNote(), 150);
       });
       setTimeout(() => input.focus(), 0);
     }

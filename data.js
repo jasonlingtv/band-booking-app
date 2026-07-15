@@ -61,7 +61,7 @@ const DataLayer = (() => {
   }
 
   function _defaultData() {
-    return { teams: [], activeProjectId: null, activeTaskId: null, activeView: 'list', templates: [], hiddenDefaultTemplates: [], defaultTemplatesVisible: true };
+    return { teams: [], activeProjectId: null, activeTaskId: null, activeView: 'list', templates: [], hiddenDefaultTemplates: [], defaultTemplatesVisible: true, standaloneReminders: [] };
   }
 
   // ── Persistence ───────────────────────────────────────────────────────────
@@ -318,6 +318,8 @@ const DataLayer = (() => {
     if (!_data.hiddenDefaultTemplates) { _data.hiddenDefaultTemplates = []; dirty = true; }
     // 11. Ensure defaultTemplatesVisible exists
     if (_data.defaultTemplatesVisible === undefined) { _data.defaultTemplatesVisible = true; dirty = true; }
+    // 15. Ensure standaloneReminders exists
+    if (!_data.standaloneReminders) { _data.standaloneReminders = []; dirty = true; }
 
     // 12. Add Archive to Band Booking template projectSections if missing
     for (const tmpl of _data.templates) {
@@ -746,6 +748,32 @@ const DataLayer = (() => {
     return copy;
   }
 
+  // ── Standalone reminders ──────────────────────────────────────────────────
+
+  function getStandaloneReminders() {
+    return _data.standaloneReminders || [];
+  }
+
+  function addStandaloneReminder(text, priority) {
+    const r = { id: Utils.generateId(), text, priority: priority || null, timestamp: new Date().toISOString(), done: false };
+    if (!_data.standaloneReminders) _data.standaloneReminders = [];
+    _data.standaloneReminders.push(r);
+    saveData();
+    return r;
+  }
+
+  function updateStandaloneReminder(id, changes) {
+    if (!_data.standaloneReminders) return;
+    const r = _data.standaloneReminders.find(r => r.id === id);
+    if (r) { Object.assign(r, changes); saveData(); }
+  }
+
+  function deleteStandaloneReminder(id) {
+    if (!_data.standaloneReminders) return;
+    _data.standaloneReminders = _data.standaloneReminders.filter(r => r.id !== id);
+    saveData();
+  }
+
   function moveTaskToSection(taskId, targetSectionId) {
     const found = _findTask(taskId);
     if (!found) return;
@@ -861,6 +889,7 @@ const DataLayer = (() => {
     getTask, getTaskSection, getTaskTeam,
     addTask, addTaskAfter, updateTask, updateTaskField, deleteTask, duplicateTask,
     moveTaskToSection, moveTaskToPosition,
+    getStandaloneReminders, addStandaloneReminder, updateStandaloneReminder, deleteStandaloneReminder,
     reorderTeams, reorderProjects, reorderSections,
     getActiveProjectId, setActiveProjectId,
     getActiveTaskId, setActiveTaskId,
