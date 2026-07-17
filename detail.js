@@ -192,8 +192,10 @@ const DetailPanel = (() => {
       if (e.key === 'Escape') { input.value = _lastSaved; input.blur(); }
     });
     input.addEventListener('input', () => {
+      const st = input.scrollTop;
       input.style.height = 'auto';
       input.style.height = input.scrollHeight + 'px';
+      input.scrollTop = st;
     });
 
     container.appendChild(input);
@@ -1268,8 +1270,10 @@ const DetailPanel = (() => {
         input.rows = 3;
         input.value = val;
         input.addEventListener('input', () => {
+          const st = input.scrollTop;
           input.style.height = 'auto';
           input.style.height = input.scrollHeight + 'px';
+          input.scrollTop = st;
         });
         input.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') { committed = true; input.blur(); showRead(); }
@@ -1666,8 +1670,10 @@ const DetailPanel = (() => {
         ta.placeholder = 'One act per line…';
         ta.value = v.lineup || '';
         ta.addEventListener('input', () => {
+          const st = ta.scrollTop;
           ta.style.height = 'auto';
           ta.style.height = ta.scrollHeight + 'px';
+          ta.scrollTop = st;
         });
         let committed = false;
         function commit() {
@@ -1953,8 +1959,10 @@ const DetailPanel = (() => {
     textarea.addEventListener('focus', () => { _editingActive = true; });
     textarea.addEventListener('blur', () => { setTimeout(() => { _editingActive = false; }, 100); });
     textarea.addEventListener('input', () => {
+      const st = textarea.scrollTop;
       textarea.style.height = 'auto';
       textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      textarea.scrollTop = st;
     });
     sendBtn.addEventListener('click', _send);
     attachBtn.addEventListener('click', () => fileInput.click());
